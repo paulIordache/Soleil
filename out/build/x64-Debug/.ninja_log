@@ -1,0 +1,11 @@
+# ninja log v6
+13	316	7809686396799623	CMakeFiles/vulkan_engine.dir/core/src/vulkan-util.cpp.obj	25ab2cf970f977cc
+21	323	7809686396884697	CMakeFiles/vulkan_engine.dir/core/src/vulkan-wrapper.cpp.obj	f0df54d5612c911d
+5	329	7809686396719640	CMakeFiles/vulkan_engine.dir/main.cpp.obj	95c2c07f67f3e698
+24	332	7809686396914711	CMakeFiles/vulkan_engine.dir/core/src/vulkan-queue.cpp.obj	151e83fd24fa96ed
+30	333	7809686396974750	CMakeFiles/vulkan_engine.dir/common/src/glslang-util.cpp.obj	419abd64cb7586a7
+18	346	7809686396854701	CMakeFiles/vulkan_engine.dir/core/src/vulkan-app.cpp.obj	1aa249a274084933
+9	376	7809686396759631	CMakeFiles/vulkan_engine.dir/core/src/vulkan-core.cpp.obj	d4b56fd365812a0b
+15	380	7809686396829611	CMakeFiles/vulkan_engine.dir/core/src/vulkan-device.cpp.obj	25a4a87068cd81ab
+33	454	7809686397004751	CMakeFiles/vulkan_engine.dir/common/src/file-util.cpp.obj	f1605b7a66869213
+27	664	7809686396944707	CMakeFiles/vulkan_engine.dir/core/src/vulkan-shader.cpp.obj	38888482344848d2

@@ -1,0 +1,279 @@
+#version 460
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(binding = 0) uniform sampler2D imgInputDiffuse;
+layout(binding = 1) uniform sampler2D imgInputSpecular;
+layout(binding = 2, rgba16f) uniform writeonly image2D imgOutputDiffuse;
+layout(binding = 3, rgba16f) uniform writeonly image2D imgOutputSpecular;
+layout(binding = 4) uniform sampler2D imgMotion;
+layout(binding = 5) uniform sampler2D imgNormal;
+layout(binding = 6) uniform sampler2D imgDepth;
+layout(binding = 7) uniform sampler2D imgPrevNormal;
+layout(binding = 8) uniform sampler2D imgPrevDepth;
+layout(binding = 9) uniform sampler2D imgHistoryDiffuse;
+layout(binding = 10) uniform sampler2D imgHistorySpecular;
+layout(binding = 11) uniform sampler2D imgPrevMomentsDiffuse;
+layout(binding = 12) uniform sampler2D imgPrevMomentsSpecular;
+layout(binding = 13, rg16f) uniform writeonly image2D imgMomentsDiffuse;
+layout(binding = 14, rg16f) uniform writeonly image2D imgMomentsSpecular;
+
+float Luminance(vec3 c) {
+    return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+
+vec3 SuppressFireflies(vec3 color, vec2 uv, vec2 texelSize, sampler2D img) {
+    if (any(isnan(color)) || any(isinf(color))) return vec3(0.0);
+
+    float maxLuma = 0.0;
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            if (x == 0 && y == 0) continue;
+            maxLuma = max(maxLuma, Luminance(texture(img, uv + vec2(x, y) * texelSize).rgb));
+        }
+    }
+    float cLuma = Luminance(color);
+    float limit = max(maxLuma * 8.0, 0.1);
+    return (cLuma > limit) ? color * (limit / cLuma) : color;
+}
+
+vec3 SuppressFirefliesSpec(vec3 color, vec2 uv, vec2 texelSize, sampler2D img) {
+    if (any(isnan(color)) || any(isinf(color))) return vec3(0.0);
+
+    float maxLuma = 0.0;
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            if (x == 0 && y == 0) continue;
+            maxLuma = max(maxLuma, Luminance(texture(img, uv + vec2(x, y) * texelSize).rgb));
+        }
+    }
+    float cLuma = Luminance(color);
+    float limit = max(maxLuma * 2.0, 0.05);
+    return (cLuma > limit) ? color * (limit / cLuma) : color;
+}
+
+vec2 SpatialVarianceFallback(vec2 uv, vec2 texelSize, vec3 centerNormal, float centerDepth, vec2 dz_dxy) {
+    const float sigma_z = 1.0;
+    const float sigma_n = 128.0;
+
+    float sumMu1 = 0.0, sumMu2 = 0.0, sumW = 0.0;
+
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            vec2  sUV    = uv + vec2(x, y) * texelSize;
+            vec3  sNorm  = texture(imgNormal, sUV).xyz;
+            float sDepth = texture(imgDepth,  sUV).r;
+
+            vec2  offset    = vec2(float(x), float(y));
+            float depthDiff = abs(centerDepth - sDepth);
+
+            float expectedDepthDiff = abs(dot(dz_dxy, offset));
+            float depthTolerance = sigma_z * expectedDepthDiff + 1e-4;
+            float wDepth = exp(-depthDiff / depthTolerance);
+
+            float wNormal   = pow(max(0.0, dot(centerNormal, sNorm)), sigma_n);
+
+            float w = wDepth * wNormal;
+            if (w < 1e-6) continue;
+
+            vec3 rawColor = max(vec3(0.0), texture(imgInputDiffuse, sUV).rgb);
+            vec3 cleanColor = SuppressFireflies(rawColor, sUV, texelSize, imgInputDiffuse);
+            float luma = Luminance(cleanColor);
+            sumMu1 += luma      * w;
+            sumMu2 += luma*luma * w;
+            sumW   += w;
+        }
+    }
+
+    if (sumW < 1e-6) {
+        vec3 rawColor = max(vec3(0.0), texture(imgInputDiffuse, uv).rgb);
+        vec3 cleanColor = SuppressFireflies(rawColor, uv, texelSize, imgInputDiffuse);
+        float l = Luminance(cleanColor);
+        return vec2(l, l * l);
+    }
+    return vec2(sumMu1, sumMu2) / sumW;
+}
+
+vec2 SpatialVarianceFallbackSpec(vec2 uv, vec2 texelSize, vec3 centerNormal, float centerDepth, vec2 dz_dxy) {
+    const float sigma_z = 1.0;
+    const float sigma_n = 128.0;
+
+    float sumMu1 = 0.0, sumMu2 = 0.0, sumW = 0.0;
+
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            vec2  sUV    = uv + vec2(x, y) * texelSize;
+            vec3  sNorm  = texture(imgNormal, sUV).xyz;
+            float sDepth = texture(imgDepth, sUV).r;
+
+            vec2  offset    = vec2(float(x), float(y));
+            float depthDiff = abs(centerDepth - sDepth);
+
+            float expectedDepthDiff = abs(dot(dz_dxy, offset));
+            float depthTolerance = sigma_z * expectedDepthDiff + 1e-4;
+            float wDepth = exp(-depthDiff / depthTolerance);
+
+            float wNormal   = pow(max(0.0, dot(centerNormal, sNorm)), sigma_n);
+
+            float w = wDepth * wNormal;
+            if (w < 1e-6) continue;
+
+            vec3 rawColor = max(vec3(0.0), texture(imgInputSpecular, sUV).rgb);
+            vec3 cleanColor = SuppressFirefliesSpec(rawColor, sUV, texelSize, imgInputSpecular);
+            float luma = Luminance(cleanColor);
+            sumMu1 += luma * w;
+            sumMu2 += luma*luma * w;
+            sumW += w;
+        }
+    }
+
+    if (sumW < 1e-6) {
+        vec3 rawColor = max(vec3(0.0), texture(imgInputSpecular, uv).rgb);
+        vec3 cleanColor = SuppressFirefliesSpec(rawColor, uv, texelSize, imgInputSpecular);
+        float l = Luminance(cleanColor);
+        return vec2(l, l * l);
+    }
+    return vec2(sumMu1, sumMu2) / sumW;
+}
+
+void main() {
+    ivec2 p    = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = imageSize(imgOutputDiffuse);
+    if (p.x >= size.x || p.y >= size.y) return;
+
+    vec2 texelSize = 1.0 / vec2(size);
+    vec2 uv        = (vec2(p) + 0.5) * texelSize;
+
+    vec3 cDiff = SuppressFireflies(max(vec3(0.0), texture(imgInputDiffuse,  uv).rgb), uv, texelSize, imgInputDiffuse);
+    vec3 cSpec = SuppressFirefliesSpec(max(vec3(0.0), texture(imgInputSpecular, uv).rgb), uv, texelSize, imgInputSpecular);
+
+    vec2  mot    = texture(imgMotion, uv).xy;
+    vec2  prevUV = uv - mot;
+
+    bool  valid  = (prevUV.x >= 0.0 && prevUV.x <= 1.0 && prevUV.y >= 0.0 && prevUV.y <= 1.0);
+
+    vec4  nCData     = texture(imgNormal, uv);
+    vec3  nC         = nCData.xyz;
+    float cRoughness = nCData.w;
+
+    float cDepth = texture(imgDepth, uv).r;
+    float dR_c   = textureOffset(imgDepth, uv, ivec2(1, 0)).r;
+    float dU_c   = textureOffset(imgDepth, uv, ivec2(0, 1)).r;
+    vec2  dz_dxy = vec2(dR_c - cDepth, dU_c - cDepth);
+
+    float normalSimilarity = 1.0;
+    if (valid) {
+        vec3  nP = texture(imgPrevNormal, prevUV).xyz;
+        float dP = texture(imgPrevDepth,  prevUV).r;
+
+        normalSimilarity = max(0.0, dot(nC, nP));
+        if (normalSimilarity < 0.95) valid = false;
+
+        vec2  duvPx        = (prevUV - uv) * vec2(size);
+        float expectedDepth = cDepth + dot(dz_dxy, duvPx);
+        if (abs(dP - expectedDepth) > 0.1 * abs(expectedDepth) + 1e-3) valid = false;
+    }
+
+    float historyLengthDiff = 0.0;
+    float historyLengthSpec = 0.0;
+    vec3  hDiff = cDiff;
+    vec3  hSpec = cSpec;
+
+    if (valid) {
+        vec2  prevPx = prevUV * vec2(size) - 0.5;
+        ivec2 base   = ivec2(floor(prevPx));
+        vec2  frac   = prevPx - vec2(base);
+
+        float bw[4] = float[]((1.0 - frac.x) * (1.0 - frac.y), frac.x * (1.0 - frac.y), (1.0 - frac.x) * frac.y, frac.x * frac.y);
+        ivec2 bOff[4] = ivec2[](ivec2(0,0), ivec2(1,0), ivec2(0,1), ivec2(1,1));
+
+        vec3  accDiff = vec3(0.0);
+        vec3  accSpec = vec3(0.0);
+        float totalW  = 0.0;
+        float rawHLDiff = 0.0;
+        float rawHLSpec = 0.0;
+
+        for (int t = 0; t < 4; t++) {
+            vec2  tapUV = (vec2(base + bOff[t]) + 0.5) * texelSize;
+            if (any(lessThan(tapUV, vec2(0.0))) || any(greaterThan(tapUV, vec2(1.0)))) continue;
+
+            vec3  tapN = texture(imgPrevNormal, tapUV).xyz;
+            float tapD = texture(imgPrevDepth,  tapUV).r;
+
+            vec2  off2d       = vec2(bOff[t]);
+            float tapExpDepth = cDepth + dot(dz_dxy, off2d + (prevUV - uv) * vec2(size));
+
+            bool  tapOk = (dot(nC, tapN) >= 0.95) && (abs(tapD - tapExpDepth) <= 0.1 * abs(tapExpDepth) + 1e-3);
+            if (!tapOk) continue;
+
+            vec4 tapDiffSample = texture(imgHistoryDiffuse, tapUV);
+            vec4 tapSpecSample = texture(imgHistorySpecular, tapUV);
+            accDiff   += tapDiffSample.rgb * bw[t];
+            accSpec   += tapSpecSample.rgb * bw[t];
+            rawHLDiff  = max(rawHLDiff, tapDiffSample.a);
+            rawHLSpec  = max(rawHLSpec, tapSpecSample.a);
+            totalW    += bw[t];
+        }
+
+        if (totalW < 1e-6) {
+            for (int y = -1; y <= 1; y++) {
+                for (int x = -1; x <= 1; x++) {
+                    vec2  tapUV = prevUV + vec2(x, y) * texelSize;
+                    vec3  tapN  = texture(imgPrevNormal, tapUV).xyz;
+                    float tapD  = texture(imgPrevDepth,  tapUV).r;
+                    vec2  off3  = vec2(float(x), float(y)) + (prevUV - uv) * vec2(size);
+                    float exp3  = cDepth + dot(dz_dxy, off3);
+
+                    if (dot(nC, tapN) >= 0.95 && abs(tapD - exp3) <= 0.1 * abs(exp3) + 1e-3) {
+                        vec4 sDiff = texture(imgHistoryDiffuse,  tapUV);
+                        vec4 sSpec = texture(imgHistorySpecular, tapUV);
+                        accDiff   += sDiff.rgb;
+                        accSpec   += sSpec.rgb;
+                        rawHLDiff  = max(rawHLDiff, sDiff.a);
+                        rawHLSpec  = max(rawHLSpec, sSpec.a);
+                        totalW    += 1.0;
+                    }
+                }
+            }
+            if (totalW < 1e-6) valid = false;
+        }
+
+        if (valid) {
+            hDiff = accDiff / max(totalW, 1e-6);
+            hSpec = accSpec / max(totalW, 1e-6);
+            historyLengthDiff = min(4.0, rawHLDiff + 1.0);
+            historyLengthSpec = min(4.0, rawHLSpec + 1.0);
+        }
+    }
+
+    float alphaDiff = valid ? 0.2 : 1.0;
+    float alphaSpec = valid ? mix(0.2, 0.05, clamp(cRoughness / 0.4, 0.0, 1.0)) : 1.0;
+
+    vec3 resultDiff = mix(hDiff, cDiff, alphaDiff);
+    vec3 resultSpec = mix(hSpec, cSpec, alphaSpec);
+
+    imageStore(imgOutputDiffuse,  p, vec4(resultDiff, historyLengthDiff));
+    imageStore(imgOutputSpecular, p, vec4(resultSpec, historyLengthSpec));
+
+    float lumaDiff   = Luminance(cDiff);
+    float lumaSpec   = Luminance(cSpec);
+    vec2  curMomDiff = vec2(lumaDiff, lumaDiff * lumaDiff);
+    vec2  curMomSpec = vec2(lumaSpec, lumaSpec * lumaSpec);
+
+    vec2 outMomDiff, outMomSpec;
+
+    if (!valid || historyLengthDiff < 4.0) {
+        outMomDiff = SpatialVarianceFallback(uv, texelSize, nC, cDepth, dz_dxy);
+    } else {
+        vec2 prevMomDiff = texture(imgPrevMomentsDiffuse, prevUV).rg;
+        outMomDiff = mix(prevMomDiff, curMomDiff, alphaDiff);
+    }
+    if (!valid || historyLengthSpec < 4.0) {
+        outMomSpec = SpatialVarianceFallbackSpec(uv, texelSize, nC, cDepth, dz_dxy);
+    } else {
+        vec2 prevMomSpec = texture(imgPrevMomentsSpecular, prevUV).rg;
+        outMomSpec = mix(prevMomSpec, curMomSpec, alphaSpec);
+    }
+
+    imageStore(imgMomentsDiffuse,  p, vec4(outMomDiff, 0.0, 0.0));
+    imageStore(imgMomentsSpecular, p, vec4(outMomSpec,  0.0, 0.0));
+}

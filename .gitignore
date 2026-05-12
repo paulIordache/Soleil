@@ -1,0 +1,11 @@
+./cmake-build-debug
+./out
+.3rd_party/
+./content
+.idea
+.vscode
+3rd_party
+./3rd_party
+./3rd_party/
+./content/
+content
