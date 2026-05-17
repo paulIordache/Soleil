@@ -45,8 +45,6 @@ namespace VK {
         double cpuFrameTimeMs;
         size_t vramUsageMB;
         size_t ramUsageMB;
-        uint64_t fragInvocations;
-        uint64_t compInvocations;
     };
 
     struct StageMetrics {
@@ -66,32 +64,51 @@ namespace VK {
         ~VulkanApp() override;
 
         void createShaders();
+
         void CreateSVGFPipeline(int fbWidth, int fbHeight);
+
         void CreateRayTracingPipeline(int fbWidth, int fbHeight);
+
         void createVertexBuffer();
+
         void createUniformBuffers();
+
         void init(const char *pAppName);
+
         void updateUniformBuffers(u32 imageIndex);
+
         void UpdateGUI();
+
         void renderScene();
+
         void RecordCommandBuffers();
+
         void ManagePipelinesViews();
+
         void DefaultCreateCameraPers();
+
         void DefaultCreateCameraPers(float FOV, float zNear, float zFar);
+
         void Key(GLFWwindow *pWindow, int Key, int Scancode, int Action, int Mods) override;
+
         void MouseMove(GLFWwindow *pWindow, double x, double y) override;
+
         void MouseButton(GLFWwindow *pWindow, int Button, int Action, int Mods) override;
+
         void createMesh();
+
         void loadTexture();
+
         void Execute();
 
         VkQueryPool m_queryPool = VK_NULL_HANDLE;
         float m_timestampPeriod = 1.0f;
         uint32_t m_maxQueriesPerFrame = 200;
-        std::vector<std::vector<ProfilerRecord>> m_frameQueryRecords;
+        std::vector<std::vector<ProfilerRecord> > m_frameQueryRecords;
         std::vector<uint32_t> m_queryAllocated;
 
         uint32_t AllocateQuery(uint32_t frameIndex);
+
         void CollectTimestamps(uint32_t frameIndex);
 
     private:
@@ -108,11 +125,17 @@ namespace VK {
         };
 
         void RecordCommandBuffersInternal(bool WithSecondBarrier, std::vector<VkCommandBuffer> &CmdBufs);
+
         void createCommandBuffers();
+
         void BeginRendering(VkCommandBuffer CmdBuf, int ImageIndex);
+
         void CreateGeometryPipeline();
+
         void CreateCompositePipeline();
+
         void CreateViews();
+
         void UpdatePipelinesDescriptorSets() const;
 
         GLFWwindow *m_pWindow;
@@ -130,7 +153,7 @@ namespace VK {
         VkShaderModule m_fs;
         GraphicsPipelineV2 *m_pPipeline = nullptr;
         VkModel m_model;
-        VkModel* m_pSphereLightModel = nullptr;
+        VkModel *m_pSphereLightModel = nullptr;
 
         std::vector<VkModel *> m_models;
         BufferAndMemory m_instanceAddressBuffer;
@@ -143,16 +166,45 @@ namespace VK {
         int m_windowWidth = 0;
         int m_windowHeight = 0;
 
+        bool m_showFPSGraph = false;
+        static constexpr int FPS_HISTORY_SIZE = 240;
+        float m_fpsHistory[FPS_HISTORY_SIZE] = {0.0f};
+        float m_frameTimeHistory[FPS_HISTORY_SIZE] = {0.0f};
+        int m_fpsHistoryOffset = 0;
+
         glm::vec3 m_dirLightDir = glm::vec3(0.489f, -1.0f, 0.032f);
         glm::vec3 m_dirLightColor = glm::vec3(1.0f, 0.98f, 0.85f);
         float m_dirLightStrength = 1.5f;
         float m_dirLightAngle = 0.001f;
 
-        glm::vec3 m_sphLightPos = glm::vec3(13.058f, -11.05f, 3.12f);
+        static constexpr int MAX_SPH_LIGHTS = 16;
+        glm::vec3 m_sphLightPos[MAX_SPH_LIGHTS] = {
+            glm::vec3(-58.6421f, -9.44338f, -0.765313f),
+            glm::vec3(-4.20085f, -10.1262f, 0.786111f),
+            glm::vec3(53.6714f, -9.1339f, 1.66376f),
+            glm::vec3(51.3524f, -9.67212f, -15.8288f),
+            glm::vec3(51.9909f, -10.2458f, 21.5527f),
+            glm::vec3(-4.85255f, -8.90427f, 23.0227f),
+            glm::vec3(-62.0994f, -8.25143f, 21.3266f),
+            glm::vec3(-56.0975f, -10.0154f, -21.06f),
+            glm::vec3(-7.74807f, -9.23215f, -21.3797f),
+            glm::vec3(-6.9897f, -32.87f, 21.6555f),
+            glm::vec3(-6.99545f, -32.9049f, -17.865f),
+            glm::vec3(-62.8297f, -32.0874f, 1.6272f),
+            glm::vec3(54.9054f, -33.598f, 2.16457f),
+            glm::vec3(45.2338f, -32.016f, -16.5506f),
+            glm::vec3(-60.9672f, -32.9498f, 24.4051f),
+            glm::vec3(-10.2212f, -49.0523f, -0.0971115f)
+        };
+
+        bool m_sphLightEnabled[MAX_SPH_LIGHTS] = {
+            true, true, true, true, true, true, true, true,
+            true, true, true, true, true, true, true, true
+        };
+
         glm::vec3 m_sphLightColor = glm::vec3(1.0f, 0.84f, 0.67f);
         float m_sphLightStrength = 50.0f;
         float m_sphLightRadius = 0.5f;
-        float m_sphLightAreaRadius = 5.0f;
 
         glm::vec3 m_clearColor = glm::vec3(0.0f);
         glm::vec3 m_position = glm::vec3(0.0f);
@@ -195,13 +247,9 @@ namespace VK {
         std::vector<VkImageView> m_rtSpecularMotionViews;
         std::vector<VkImageView> m_geomNormalViews;
 
-        // --- Thesis Metrics Tracking ---
-        VkQueryPool m_pipelineStatsPool = VK_NULL_HANDLE;
         std::vector<FrameMetrics> m_frameMetricsHistory;
         std::vector<StageMetrics> m_gpuStageHistory;
         uint64_t m_absoluteFrameCount = 0;
-        uint64_t m_fragInvocations = 0;
-        uint64_t m_compInvocations = 0;
         uint64_t m_totalVertices = 0;
 
         void CreateGBuffers(int width, int height);

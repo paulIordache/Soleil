@@ -3,7 +3,12 @@ project(vulkan_engine)
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(VULKAN_SDK "C:/VulkanSDK/1.4.321.1")
+if (DEFINED ENV{VULKAN_SDK})
+    set(VULKAN_SDK "$ENV{VULKAN_SDK}")
+else ()
+    message(FATAL_ERROR "VULKAN_SDK environment variable is not set. Please install the Vulkan SDK or set the environment variable manually.")
+endif ()
+
 set(VULKAN_SDK_LIB_DIR "${VULKAN_SDK}/Lib")
 
 set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/3rd_party/ImGui/GLFW")
@@ -29,7 +34,6 @@ include_directories(
         3rd_party/glfw-3.4/include
         3rd_party/include
         3rd_party/glm-1.0.2
-#        3rd_party/meshoptimizer/src
         3rd_party/gli
         3rd_party/ImGui/GLFW
         3rd_party/ImGui/imGuIZMO.quat
@@ -87,11 +91,7 @@ target_link_libraries(vulkan_engine
         glfw3
         vulkan-1
         $<$<CONFIG:Debug>:${GLSLANG_LIBS_DEBUG}>
-        #   $<$<CONFIG:Release>:${GLSLANG_LIBS_RELEASE}>
-        #   $<$<CONFIG:RelWithDebInfo>:${GLSLANG_LIBS_RELEASE}>
-        #   $<$<CONFIG:MinSizeRel>:${GLSLANG_LIBS_RELEASE}>
         assimp
         GLEW::GLEW
         meshoptimizer
 )
-

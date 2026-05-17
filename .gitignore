@@ -8,3 +8,15 @@
 ./3rd_party/
 ./content/
 content
+*.csv
+*.py
+*.png
+./figures_comparative
+./figures
+./figures/
+./figures_comparative/
+*.rar
+figures/
+figures
+figures_comparative
+figures_comparative/

@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <set>
+#include <algorithm>
 
 #include "glm-camera.h"
 #include "math-3d.h"
@@ -55,6 +56,44 @@ namespace VK {
         return m_queryAllocated[frameIndex]++;
     }
 
+    void SetupImGuiStyle() {
+        ImGuiStyle &style = ImGui::GetStyle();
+        ImVec4* colors = style.Colors;
+
+        // TRUE PITCH BLACK THEME
+        colors[ImGuiCol_Text]                   = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+        colors[ImGuiCol_WindowBg]               = ImVec4(0.00f, 0.00f, 0.00f, 0.96f); // Absolute black
+        colors[ImGuiCol_Border]                 = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
+        colors[ImGuiCol_FrameBg]                = ImVec4(0.08f, 0.08f, 0.08f, 1.00f); // Very dark gray for inputs
+        colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+        colors[ImGuiCol_FrameBgActive]          = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+        colors[ImGuiCol_TitleBg]                = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+        colors[ImGuiCol_TitleBgActive]          = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+        colors[ImGuiCol_CheckMark]              = ImVec4(0.00f, 1.00f, 0.40f, 1.00f); // Neon green
+        colors[ImGuiCol_SliderGrab]             = ImVec4(0.00f, 1.00f, 0.40f, 1.00f);
+        colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.00f, 0.80f, 0.30f, 1.00f);
+        colors[ImGuiCol_Button]                 = ImVec4(0.12f, 0.12f, 0.12f, 1.00f);
+        colors[ImGuiCol_ButtonHovered]          = ImVec4(0.00f, 0.60f, 0.30f, 1.00f);
+        colors[ImGuiCol_ButtonActive]           = ImVec4(0.00f, 1.00f, 0.40f, 1.00f);
+        colors[ImGuiCol_Header]                 = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+        colors[ImGuiCol_HeaderHovered]          = ImVec4(0.00f, 0.60f, 0.30f, 0.80f);
+        colors[ImGuiCol_HeaderActive]           = ImVec4(0.00f, 1.00f, 0.40f, 1.00f);
+        colors[ImGuiCol_PlotLines]              = ImVec4(0.00f, 1.00f, 1.00f, 1.00f); // Cyan graph
+        colors[ImGuiCol_PlotLinesHovered]       = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+        colors[ImGuiCol_PlotHistogram]          = ImVec4(1.00f, 0.00f, 0.50f, 1.00f); // Pink/Magenta histogram
+        colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.40f, 0.80f, 1.00f);
+
+        style.WindowRounding    = 0.0f; // Sharp, aggressive corners
+        style.ChildRounding     = 0.0f;
+        style.FrameRounding     = 2.0f;
+        style.PopupRounding     = 0.0f;
+        style.ScrollbarRounding = 0.0f;
+        style.GrabRounding      = 2.0f;
+        style.TabRounding       = 0.0f;
+        style.WindowBorderSize  = 1.0f;
+        style.FrameBorderSize   = 1.0f;
+    }
+
     void VulkanApp::CollectTimestamps(uint32_t frameIndex) {
         if (m_queryAllocated[frameIndex] == 0) return;
 
@@ -85,22 +124,9 @@ namespace VK {
                 m_gpuStageHistory.push_back(sm);
             }
         }
-
-        // FIX: Array sized to 3 to prevent stack corruption from VK_QUERY_RESULT_WITH_AVAILABILITY_BIT
-        uint64_t pipelineStats[3] = {0, 0, 0};
-        VkResult statRes = vkGetQueryPoolResults(
-            m_device, m_pipelineStatsPool, frameIndex, 1,
-            sizeof(pipelineStats), pipelineStats, sizeof(uint64_t),
-            VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
-
-        if (statRes == VK_SUCCESS || statRes == VK_NOT_READY) {
-            m_fragInvocations = pipelineStats[0];
-            m_compInvocations = pipelineStats[1];
-        }
     }
 
     VulkanApp::~VulkanApp() {
-        // --- NEW CALCULATIONS FOR GPU AVERAGES ---
         double totalAvgGpuTime = 0.0;
         std::map<std::string, double> stageAverages;
 
@@ -108,22 +134,18 @@ namespace VK {
             for (const auto &sm: m_gpuStageHistory) {
                 double frameTotalGpu = 0.0;
                 for (const auto &pair: sm.stages) {
-                    frameTotalGpu += pair.second; // Sum the stages for this frame
-                    stageAverages[pair.first] += pair.second; // Accumulate for per-stage averages
+                    frameTotalGpu += pair.second;
+                    stageAverages[pair.first] += pair.second;
                 }
                 totalAvgGpuTime += frameTotalGpu;
             }
 
-            // Divide by total frames to get the final averages
             totalAvgGpuTime /= m_gpuStageHistory.size();
             for (auto &pair: stageAverages) {
                 pair.second /= m_gpuStageHistory.size();
             }
         }
 
-        // ---------------------------------------------------------
-        // 1. Export General Summary
-        // ---------------------------------------------------------
         std::ofstream summaryCsv("../../thesis_summary.csv");
         summaryCsv << "Parameter,Value\n";
         summaryCsv << "GPU," << m_vkCore.GetPhysicalDevice().m_devProps.deviceName << "\n";
@@ -133,49 +155,35 @@ namespace VK {
         summaryCsv << "Frames Tracked (GPU Stages)," << m_gpuStageHistory.size() << "\n\n";
 
         double avgCpu = 0, avgVram = 0, avgRam = 0;
-        uint64_t avgFrag = 0, avgComp = 0;
         if (!m_frameMetricsHistory.empty()) {
             for (const auto &m: m_frameMetricsHistory) {
                 avgCpu += m.cpuFrameTimeMs;
                 avgVram += m.vramUsageMB;
                 avgRam += m.ramUsageMB;
-                avgFrag += m.fragInvocations;
-                avgComp += m.compInvocations;
             }
             double count = m_frameMetricsHistory.size();
             summaryCsv << "Avg CPU Frame Time (ms)," << avgCpu / count << "\n";
-            summaryCsv << "Avg Total GPU Time (ms)," << totalAvgGpuTime << "\n"; // <--- ADDED HERE
+            summaryCsv << "Avg Total GPU Time (ms)," << totalAvgGpuTime << "\n";
             summaryCsv << "Avg VRAM Usage (MB)," << avgVram / count << "\n";
-            summaryCsv << "Avg System RAM Usage (MB)," << avgRam / count << "\n";
-            summaryCsv << "Avg Fragment Shader Invocations," << avgFrag / count << "\n";
-            summaryCsv << "Avg Compute Shader Invocations," << avgComp / count << "\n\n";
+            summaryCsv << "Avg System RAM Usage (MB)," << avgRam / count << "\n\n";
         }
 
-        // Output the individual average for each pipeline stage
         summaryCsv << "GPU Stage,Average Time (ms)\n";
         for (const auto &pair: stageAverages) {
             summaryCsv << pair.first << "," << pair.second << "\n";
         }
         summaryCsv.close();
 
-        // ---------------------------------------------------------
-        // 2. Export Hardware Metrics (Per Frame)
-        // ---------------------------------------------------------
         std::ofstream hwCsv("../../thesis_hardware_metrics.csv");
-        hwCsv << "Frame,CPU_Time_ms,VRAM_MB,RAM_MB,Fragment_Invocations,Compute_Invocations\n";
+        hwCsv << "Frame,CPU_Time_ms,VRAM_MB,RAM_MB\n";
         for (const auto &m: m_frameMetricsHistory) {
             hwCsv << m.frameNumber << ","
                     << m.cpuFrameTimeMs << ","
                     << m.vramUsageMB << ","
-                    << m.ramUsageMB << ","
-                    << m.fragInvocations << ","
-                    << m.compInvocations << "\n";
+                    << m.ramUsageMB << "\n";
         }
         hwCsv.close();
 
-        // ---------------------------------------------------------
-        // 3. Export GPU Stage Breakdown (Per Frame)
-        // ---------------------------------------------------------
         std::ofstream stageCsv("../../thesis_gpu_stages_metrics.csv");
 
         std::set<std::string> allStages;
@@ -207,12 +215,8 @@ namespace VK {
         }
         stageCsv.close();
 
-        // Cleanup resources
         if (m_queryPool != VK_NULL_HANDLE) {
             vkDestroyQueryPool(m_device, m_queryPool, nullptr);
-        }
-        if (m_pipelineStatsPool != VK_NULL_HANDLE) {
-            vkDestroyQueryPool(m_device, m_pipelineStatsPool, nullptr);
         }
 
         m_vkCore.FreeCommandBuffers(static_cast<u32>(m_cmdBuffs.withGUI.size()),
@@ -327,15 +331,6 @@ namespace VK {
         queryPoolInfo.queryCount = m_numImages * m_maxQueriesPerFrame;
         vkCreateQueryPool(m_device, &queryPoolInfo, nullptr, &m_queryPool);
 
-        VkQueryPoolCreateInfo pipelineStatsPoolInfo{};
-        pipelineStatsPoolInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-        pipelineStatsPoolInfo.queryType = VK_QUERY_TYPE_PIPELINE_STATISTICS;
-        pipelineStatsPoolInfo.pipelineStatistics =
-                VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT |
-                VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT;
-        pipelineStatsPoolInfo.queryCount = m_numImages;
-        vkCreateQueryPool(m_device, &pipelineStatsPoolInfo, nullptr, &m_pipelineStatsPool);
-
         m_frameQueryRecords.resize(m_numImages);
         m_queryAllocated.resize(m_numImages, 0);
 
@@ -343,52 +338,16 @@ namespace VK {
 
         m_models.push_back(new VkModel());
         m_models.back()->Init(&m_vkCore);
-        m_models.back()->LoadAssimpModel("../../content/marble_statue/marble_statue.obj");
-
-        // m_models.push_back(new VkModel());
-        // m_models.back()->Init(&m_vkCore);
-        // m_models.back()->LoadAssimpModel("../../content/happy_buddha/happy_buddha.obj");
-        //
-        m_models.push_back(new VkModel());
-        m_models.back()->Init(&m_vkCore);
-        m_models.back()->LoadAssimpModel("../../content/dragoon/dragon.obj");
-        // //
-        m_models.push_back(new VkModel());
-        m_models.back()->Init(&m_vkCore);
-        m_models.back()->LoadAssimpModel("../../content/mirror/0glinda.obj");
-
-        // m_models.push_back(new VkModel());
-        //        // m_models.back()->Init(&m_vkCore);
-        //        // m_models.back()->LoadAssimpModel("../../content/radio/radio.obj");
-
-        m_models.push_back(new VkModel());
-        m_models.back()->Init(&m_vkCore);
         m_models.back()->LoadAssimpModel("../../content/HybridRendering/meshes/sponaza.obj");
 
         m_models.push_back(new VkModel());
         m_models.back()->Init(&m_vkCore);
-        m_models.back()->LoadAssimpModel("../../content/brass_goblet/brass_goblet.obj");
+        m_models.back()->LoadAssimpModel("../../content/coffee/CoffeeCart_01_4k.obj");
 
-        m_models.push_back(new VkModel());
-        m_models.back()->Init(&m_vkCore);
-        m_models.back()->LoadAssimpModel("../../content/TV/TV.obj");
-
-        // m_models.push_back(new VkModel());
-        // m_models.back()->Init(&m_vkCore);
-        // m_models.back()->LoadAssimpModel("../../content/asian_dragon/asian_dragn.obj");
-        //
         m_models.push_back(new VkModel());
         m_models.back()->Init(&m_vkCore);
         m_models.back()->LoadAssimpModel("../../content/video_camera/video_camera.obj");
-        //
-        // m_models.push_back(new VkModel());
-        // m_models.back()->Init(&m_vkCore);
-        // m_models.back()->LoadAssimpModel("../../content/antique_ceramic_vase_01_4k.blend/vaza.obj");
-        //
-        m_models.push_back(new VkModel());
-        m_models.back()->Init(&m_vkCore);
-        m_models.back()->LoadAssimpModel("../../content/coffee/CoffeeCart_01_4k.obj");
-        //
+
         m_models.push_back(new VkModel());
         m_models.back()->Init(&m_vkCore);
         m_models.back()->LoadAssimpModel("../../content/blue_barrel/blue_barrel.obj");
@@ -474,26 +433,87 @@ namespace VK {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        if (m_showImgui) {
-            ImGui::Begin("Lighting & Performance Controls");
+        if (m_showFPSGraph) {
+            ImGuiWindowFlags overlayFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+                                            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+                                            ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove;
 
-            if (ImGui::CollapsingHeader("Hardware & Thesis Metrics", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::Text("Scene Vertices: %llu", m_totalVertices);
+            ImGui::SetNextWindowPos(ImVec2(WINDOW_WIDTH - 360.0f, 20.0f), ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.95f);
+
+            if (ImGui::Begin("Hardware Analytics", nullptr, overlayFlags)) {
+                float minFps = 9999.0f, maxFps = 0.0f, avgFps = 0.0f;
+                float minFt = 9999.0f, maxFt = 0.0f, avgFt = 0.0f;
+
+                for (int i = 0; i < FPS_HISTORY_SIZE; ++i) {
+                    float f = m_fpsHistory[i];
+                    if (f < minFps && f > 0) minFps = f;
+                    if (f > maxFps) maxFps = f;
+                    avgFps += f;
+
+                    float t = m_frameTimeHistory[i];
+                    if (t < minFt && t > 0) minFt = t;
+                    if (t > maxFt) maxFt = t;
+                    avgFt += t;
+                }
+                avgFps /= FPS_HISTORY_SIZE;
+                avgFt /= FPS_HISTORY_SIZE;
+
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "[ GPU FRAMERATE ]");
+                ImGui::Text("CURRENT: %5.1f FPS  |  AVG: %5.1f FPS", ImGui::GetIO().Framerate, avgFps);
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "MIN: %.1f  |  MAX: %.1f", minFps == 9999.0f ? 0 : minFps, maxFps);
+                ImGui::PlotLines("##fps", m_fpsHistory, FPS_HISTORY_SIZE, m_fpsHistoryOffset,
+                                 nullptr, minFps > 5.0f ? minFps - 5.0f : 0.0f, maxFps + 5.0f, ImVec2(320, 60));
+
+                ImGui::Separator();
+
+                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.5f, 1.0f), "[ FRAME TIME ]");
+                ImGui::Text("CURRENT: %5.2f MS   |  AVG: %5.2f MS", 1000.0f / ImGui::GetIO().Framerate, avgFt);
+                ImGui::PlotHistogram("##frametime", m_frameTimeHistory, FPS_HISTORY_SIZE, m_fpsHistoryOffset,
+                                     nullptr, 0.0f, maxFt * 1.2f, ImVec2(320, 60));
+
+                ImGui::Separator();
 
                 size_t vramUsage = 0, vramBudget = 0;
                 m_vkCore.GetVRAMUsage(vramUsage, vramBudget);
-                ImGui::Text("VRAM Usage: %.2f MB / %.2f MB",
-                            vramUsage / (1024.0f * 1024.0f), vramBudget / (1024.0f * 1024.0f));
+                float vramRatio = vramBudget > 0 ? (float)vramUsage / (float)vramBudget : 0.0f;
+                float vramMB = vramUsage / (1024.0f * 1024.0f);
+                float vramBudgetMB = vramBudget / (1024.0f * 1024.0f);
+
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "[ VRAM ALLOCATION ]");
+                ImGui::Text("DEDICATED USAGE: %.1f MB / %.1f MB", vramMB, vramBudgetMB);
+
+                char vramOverlay[32];
+                snprintf(vramOverlay, sizeof(vramOverlay), "%.1f %% UTILIZED", vramRatio * 100.0f);
+                ImGui::ProgressBar(vramRatio, ImVec2(320, 18), vramOverlay);
 
 #ifdef _WIN32
                 PROCESS_MEMORY_COUNTERS_EX pmc;
                 if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS *) &pmc, sizeof(pmc))) {
-                    ImGui::Text("System RAM: %.2f MB", pmc.WorkingSetSize / (1024.0f * 1024.0f));
+                    float ramMB = pmc.WorkingSetSize / (1024.0f * 1024.0f);
+                    float totalRamMB = 16384.0f;
+                    float ramRatio = std::min(ramMB / totalRamMB, 1.0f);
+
+                    ImGui::Separator();
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "[ SYSTEM RAM ]");
+                    ImGui::Text("PROCESS ALLOCATION: %.1f MB", ramMB);
+
+                    char ramOverlay[32];
+                    snprintf(ramOverlay, sizeof(ramOverlay), "%.1f MB", ramMB);
+                    ImGui::ProgressBar(ramRatio, ImVec2(320, 18), ramOverlay);
                 }
 #endif
+            }
+            ImGui::End();
+        }
 
-                ImGui::Text("Fragment Invocations: %llu", m_fragInvocations);
-                ImGui::Text("Compute Invocations: %llu", m_compInvocations);
+        if (m_showImgui) {
+            ImGui::Begin("Lighting & Scene Controls");
+
+            if (ImGui::CollapsingHeader("Global Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Checkbox("Show Advanced Analytics Overlay", &m_showFPSGraph);
+                ImGui::Separator();
+                ImGui::Text("Total Scene Vertices: %llu", m_totalVertices);
             }
 
             if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -510,12 +530,31 @@ namespace VK {
                 ImGui::SliderFloat("Sun Angle (Radius)", &m_dirLightAngle, 0.001f, 0.1f);
             }
 
-            if (ImGui::CollapsingHeader("Spherical Light", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("Pos", &m_sphLightPos.x, -200.0f, 200.0f);
-                ImGui::ColorEdit3("Sph Color", &m_sphLightColor.x);
-                ImGui::SliderFloat("Sph Strength", &m_sphLightStrength, 0.0f, 2000.0f);
-                ImGui::SliderFloat("Radius", &m_sphLightRadius, 0.01f, 50.0f);
-                ImGui::SliderFloat("Area Radius", &m_sphLightAreaRadius, 0.0f, 20.0f);
+            if (ImGui::CollapsingHeader("Spherical Area Lights", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::ColorEdit3("Common Color", &m_sphLightColor.x);
+                ImGui::SliderFloat("Common Strength", &m_sphLightStrength, 0.0f, 2000.0f);
+                ImGui::SliderFloat("Common Radius", &m_sphLightRadius, 0.01f, 50.0f);
+
+                ImGui::Separator();
+                ImGui::Text("Light Toggle Presets:");
+                if (ImGui::Button("1 On")) for (int i = 0; i < 16; ++i) m_sphLightEnabled[i] = (i < 1);
+                ImGui::SameLine();
+                if (ImGui::Button("2 On")) for (int i = 0; i < 16; ++i) m_sphLightEnabled[i] = (i < 2);
+                ImGui::SameLine();
+                if (ImGui::Button("4 On")) for (int i = 0; i < 16; ++i) m_sphLightEnabled[i] = (i < 4);
+                ImGui::SameLine();
+                if (ImGui::Button("8 On")) for (int i = 0; i < 16; ++i) m_sphLightEnabled[i] = (i < 8);
+                ImGui::SameLine();
+                if (ImGui::Button("16 On")) for (int i = 0; i < 16; ++i) m_sphLightEnabled[i] = true;
+
+                ImGui::Separator();
+                for (int i = 0; i < MAX_SPH_LIGHTS; ++i) {
+                    char label[32];
+                    snprintf(label, sizeof(label), "Light %d", i + 1);
+                    ImGui::Checkbox(label, &m_sphLightEnabled[i]);
+                    if (i % 4 != 3) ImGui::SameLine();
+                }
+                ImGui::NewLine();
             }
 
             ImGui::End();
@@ -526,7 +565,6 @@ namespace VK {
 
     void VulkanApp::updateUniformBuffers(u32 imageIndex) {
         static auto prevWorldMatrix = glm::mat4(1.0f);
-        static glm::vec3 prevSphLightPos = m_sphLightPos;
         bool worldMatrixChanged = false;
         m_frameCounter++;
 
@@ -546,18 +584,20 @@ namespace VK {
             prevWorldMatrix = World;
         }
 
-        if (m_sphLightPos != prevSphLightPos) {
-            worldMatrixChanged = true;
-            prevSphLightPos = m_sphLightPos;
-        }
-
         static glm::mat4 prevVPMatrix = m_pGameCamera->GetProjMatrixGLM() * m_pGameCamera->GetViewMatrix();
         glm::mat4 currentVPMatrix = m_pGameCamera->GetProjMatrixGLM() * m_pGameCamera->GetViewMatrix();
 
         std::vector<uint64_t> modelAddresses;
         for (auto *model: m_models) {
             if (model == m_pSphereLightModel) {
-                glm::mat4 lightTranslate = glm::translate(glm::mat4(1.0f), m_sphLightPos);
+                glm::vec3 activePos = m_sphLightPos[0];
+                for (int i = 0; i < MAX_SPH_LIGHTS; ++i) {
+                    if (m_sphLightEnabled[i]) {
+                        activePos = m_sphLightPos[i];
+                        break;
+                    }
+                }
+                glm::mat4 lightTranslate = glm::translate(glm::mat4(1.0f), activePos);
                 glm::mat4 lightScale = glm::scale(glm::mat4(1.0f), glm::vec3(m_sphLightRadius));
                 model->m_worldMatrix = lightTranslate * lightScale;
             } else {
@@ -582,11 +622,15 @@ namespace VK {
         dirLight.radiusData = glm::vec4(m_dirLightAngle, 0.0f, 0.0f, 0.0f);
         sceneLights.push_back(dirLight);
 
-        Light sphLight{};
-        sphLight.posAndType = glm::vec4(m_sphLightPos, 1.0f);
-        sphLight.colorAndStrength = glm::vec4(m_sphLightColor, m_sphLightStrength);
-        sphLight.radiusData = glm::vec4(m_sphLightRadius, m_sphLightAreaRadius, 0.0f, 0.0f);
-        sceneLights.push_back(sphLight);
+        for (int i = 0; i < MAX_SPH_LIGHTS; ++i) {
+            if (m_sphLightEnabled[i]) {
+                Light sphLight{};
+                sphLight.posAndType = glm::vec4(m_sphLightPos[i], 1.0f);
+                sphLight.colorAndStrength = glm::vec4(m_sphLightColor, m_sphLightStrength);
+                sphLight.radiusData = glm::vec4(m_sphLightRadius, 0.0f, 0.0f, 0.0f);
+                sceneLights.push_back(sphLight);
+            }
+        }
 
         if (m_pRTPipeline) {
             m_pRTPipeline->UpdateLights(imageIndex, sceneLights);
@@ -667,8 +711,6 @@ namespace VK {
 
             BeginCommandBuffer(CmdBuf, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT); {
                 vkCmdResetQueryPool(CmdBuf, m_queryPool, i * m_maxQueriesPerFrame, m_maxQueriesPerFrame);
-                vkCmdResetQueryPool(CmdBuf, m_pipelineStatsPool, i, 1);
-                vkCmdBeginQuery(CmdBuf, m_pipelineStatsPool, i, 0);
 
                 std::vector<VkImageMemoryBarrier> barriers;
                 VkImageMemoryBarrier b = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
@@ -1004,8 +1046,6 @@ namespace VK {
                                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1);
             }
 
-            vkCmdEndQuery(CmdBuf, m_pipelineStatsPool, i);
-
             VkResult res = vkEndCommandBuffer(CmdBuf);
             CHECK_VK_RESULT(res, "vkEndCommandBuffer");
         }
@@ -1219,6 +1259,25 @@ namespace VK {
                     m_showImgui = !m_showImgui;
                 }
                 break;
+            case GLFW_KEY_P:
+                if (Press && m_pGameCamera) {
+                    glm::vec3 pos = m_pGameCamera->GetPosition();
+                    glm::vec3 dir = m_pGameCamera->GetTarget();
+
+                    bool fileExists = std::filesystem::exists("camera_positions.csv");
+                    std::ofstream camFile("camera_positions.csv", std::ios::app);
+
+                    if (!fileExists) {
+                        camFile << "PosX,PosY,PosZ,TargetX,TargetY,TargetZ\n";
+                    }
+
+                    camFile << pos.x << "," << pos.y << "," << pos.z << ","
+                            << dir.x << "," << dir.y << "," << dir.z << "\n";
+
+                    camFile.close();
+                    std::cout << "Saved camera position: " << pos.x << ", " << pos.y << ", " << pos.z << std::endl;
+                }
+                break;
             default: Handled = false;
         }
         if (!Handled) Handled = GLFWCameraHandler(m_pGameCamera->m_movement, Key, Action, Mods);
@@ -1245,12 +1304,18 @@ namespace VK {
         while (!glfwWindowShouldClose(m_pWindow)) {
             auto Time = static_cast<float>(glfwGetTime());
             float dt = Time - CurTime;
+
+            if (dt > 0.0f) {
+                m_fpsHistory[m_fpsHistoryOffset] = 1.0f / dt;
+                m_frameTimeHistory[m_fpsHistoryOffset] = dt * 1000.0f;
+                m_fpsHistoryOffset = (m_fpsHistoryOffset + 1) % FPS_HISTORY_SIZE;
+            }
+
             m_pGameCamera->Update(dt);
             UpdateGUI();
             renderScene();
 
-            // --- Metric Tracking for Thesis ---
-            m_absoluteFrameCount++; // Track absolute frame id
+            m_absoluteFrameCount++;
 
             FrameMetrics metrics{};
             metrics.frameNumber = m_absoluteFrameCount;
@@ -1262,16 +1327,13 @@ namespace VK {
 
 #ifdef _WIN32
             PROCESS_MEMORY_COUNTERS_EX pmc;
-            if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS *) &pmc, sizeof(pmc))) {
+            if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS *>(&pmc),
+                                     sizeof(pmc))) {
                 metrics.ramUsageMB = pmc.WorkingSetSize / (1024 * 1024);
             }
 #endif
 
-            metrics.fragInvocations = m_fragInvocations;
-            metrics.compInvocations = m_compInvocations;
-
             m_frameMetricsHistory.push_back(metrics);
-            // ----------------------------------
 
             CurTime = Time;
             glfwPollEvents();
