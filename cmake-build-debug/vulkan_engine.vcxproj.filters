@@ -1,0 +1,126 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\composite_pipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\gpu_vulkan_model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\svgf_pipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vk_ray_tracing_pipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vulkan-app.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vulkan-core.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vulkan-device.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vulkan-glfw.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vulkan-queue.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vulkan-shader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vulkan-util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vulkan-wrapper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vulkan_graphics_pipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vulkan_imgui.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vulkan_skybox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\src\vulkan_texture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\common\src\camera-handler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\common\src\cpu_model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\common\src\ect_cubemap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\common\src\file-util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\common\src\glm-camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\common\src\glslang-util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\common\src\material.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\common\src\math-3d.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\common\src\meshoptimizer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\common\src\windows-macros.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\3rd_party\ImGui\GLFW\imgui.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\3rd_party\ImGui\GLFW\imgui_draw.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\3rd_party\ImGui\GLFW\imgui_widgets.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\3rd_party\ImGui\GLFW\imgui_tables.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\3rd_party\ImGui\GLFW\imgui_impl_glfw.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\3rd_party\ImGui\GLFW\imgui_impl_vulkan.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\3rd_party\ImGui\imGuIZMO.quat\imGuIZMOquat.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\include\svgf_pipeline.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\core\include\vulkan_pipeline_base.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Paul\Desktop\licenta\vulkan_engine\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{75927656-97D6-3A56-BE3A-CC3B47A0F44A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{6D4173E3-5BE9-3004-9C5E-D671C74D7CC5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
