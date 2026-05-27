@@ -49,6 +49,10 @@ layout(set = 0, binding = 12, std430) readonly buffer LightBuffer {
 
 const float PI_VAL = 3.14159265359;
 
+vec3 f_Lambert(vec3 rho) {
+    return rho / PI_VAL;
+}
+
 float traceShadow(vec3 origin, vec3 dir, float maxDist) {
     payload.isShadowed = 1;
     traceRayEXT(topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT, 0xFF, 0, 0, 0, origin, 0.01, dir, maxDist, 0);
@@ -103,20 +107,18 @@ vec3 SampleGGXVNDF(vec3 V, vec3 N, float alpha, vec2 Xi) {
     vec3 T = normalize(cross(up, N));
     vec3 B = cross(N, T);
     vec3 V_local = vec3(dot(V, T), dot(V, B), dot(V, N));
-    vec3 Vh = normalize(vec3(alpha * V_local.x, alpha * V_local.y, V_local.z));
-    float lensq = Vh.x * Vh.x + Vh.y * Vh.y;
-    vec3 T1 = lensq > 0.0 ? vec3(-Vh.y, Vh.x, 0.0) / sqrt(lensq) : vec3(1.0, 0.0, 0.0);
-    vec3 T2 = cross(Vh, T1);
 
-    float r = sqrt(Xi.x);
-    float phi = 2.0 * PI_VAL * Xi.y;
-    float t1 = r * cos(phi);
-    float t2 = r * sin(phi);
-    float s = 0.5 * (1.0 + Vh.z);
-    t2 = (1.0 - s) * sqrt(1.0 - t1 * t1) + s * t2;
-    vec3 H_local = t1 * T1 + t2 * T2 + sqrt(max(0.0, 1.0 - t1 * t1 - t2 * t2)) * Vh;
-    vec3 H_unscaled = vec3(alpha * H_local.x, alpha * H_local.y, max(0.0, H_local.z));
-    return normalize(T * H_unscaled.x + B * H_unscaled.y + N * H_unscaled.z);
+    vec3 V_std = normalize(vec3(V_local.xy * alpha, V_local.z));
+    float phi = 2.0 * PI_VAL * Xi.x;
+    float z = (1.0 - Xi.y) * (1.0 + V_std.z) - V_std.z;
+    float sinTheta = sqrt(clamp(1.0 - z * z, 0.0, 1.0));
+    float x = sinTheta * cos(phi);
+    float y = sinTheta * sin(phi);
+
+    vec3 H_std = vec3(x, y, z) + V_std;
+    vec3 H_local = normalize(vec3(H_std.xy * alpha, H_std.z));
+
+    return normalize(T * H_local.x + B * H_local.y + N * H_local.z);
 }
 
 vec3 SampleCosineHemisphere(vec2 Xi, vec3 N) {
@@ -131,7 +133,7 @@ vec3 SampleCosineHemisphere(vec2 Xi, vec3 N) {
     return normalize(tangent * H.x + bitangent * H.y + N * H.z);
 }
 
-void DirectionalLightMIS(vec3 WorldPos, vec3 N, vec3 V, float Roughness, float Metallic, vec3 Albedo, vec2 noiseValLight, vec2 noiseValBRDF, float randSelect, Light light, out vec3 diffOut, out vec3 specOut) {
+void DirectionalLightMIS(vec3 WorldPos, vec3 ShadingN, vec3 GeomN, vec3 V, float Roughness, float Metallic, vec3 Albedo, vec2 noiseValLight, vec2 noiseValBRDF, float randSelect, Light light, out vec3 diffOut, out vec3 specOut) {
     vec3 S_DIR = normalize(light.posAndType.xyz);
     float S_RADIUS = light.radiusData.x;
     float solidAngle = 2.0 * PI_VAL * (1.0 - cos(S_RADIUS));
@@ -148,10 +150,10 @@ void DirectionalLightMIS(vec3 WorldPos, vec3 N, vec3 V, float Roughness, float M
     float P_diff = 1.0 - P_spec;
 
     vec3 L_light = SphericalDirectionalLightRayDirection(noiseValLight, S_DIR, S_RADIUS);
-    float NdotL_light = max(dot(N, L_light), 0.001);
-    float NdotV_light = max(dot(N, V), 0.001);
+    float NdotL_light = max(dot(ShadingN, L_light), 0.001);
+    float NdotV_light = max(dot(ShadingN, V), 0.001);
     vec3 H_light = normalize(V + L_light);
-    float NdotH_light = max(dot(N, H_light), 0.0);
+    float NdotH_light = max(dot(ShadingN, H_light), 0.0);
     float VdotH_light = max(dot(V, H_light), 0.0);
 
     float D_light = D_GGX(NdotH_light, alpha);
@@ -160,19 +162,15 @@ void DirectionalLightMIS(vec3 WorldPos, vec3 N, vec3 V, float Roughness, float M
     float pdf_brdf_S_diff = NdotL_light / PI_VAL;
     float pdf_brdf_S = P_diff * pdf_brdf_S_diff + P_spec * pdf_brdf_S_spec;
     float weight_light = (pdf_light * pdf_light) / max(pdf_light * pdf_light + pdf_brdf_S * pdf_brdf_S, 0.0001);
-
     if (NdotL_light > 0.0) {
-        vec3 origin = WorldPos + N * mix(0.15, 0.02, NdotL_light) + L_light * 0.05;
+        vec3 origin = WorldPos + GeomN * mix(0.15, 0.02, NdotL_light) + L_light * 0.05;
         float shadow = traceShadow(origin, L_light, 1000.0);
 
         float G_light = G_Smith_Correlated(NdotV_light, NdotL_light, alpha);
         vec3 F_light = F0_demod + (1.0 - F0_demod) * pow(2.0, (-5.55473 * VdotH_light - 6.98316) * VdotH_light);
         vec3 kD_light = (vec3(1.0) - F_light) * (1.0 - Metallic);
-
         vec3 spec = (D_light * G_light * F_light) / (4.0 * NdotV_light * NdotL_light + 0.0001) * S_COLOR * NdotL_light;
-        spec = min(spec, vec3(10.0));
-        vec3 diff = kD_light / PI_VAL * S_COLOR * NdotL_light;
-
+        vec3 diff = kD_light * f_Lambert(vec3(1.0)) * S_COLOR * NdotL_light;
         diffOut += diff * shadow * weight_light;
         specOut += spec * shadow * weight_light;
     }
@@ -180,20 +178,19 @@ void DirectionalLightMIS(vec3 WorldPos, vec3 N, vec3 V, float Roughness, float M
     vec3 L_brdf;
     vec3 H_brdf;
     if (randSelect < P_spec) {
-        H_brdf = SampleGGXVNDF(V, N, alpha, noiseValBRDF);
+        H_brdf = SampleGGXVNDF(V, ShadingN, alpha, noiseValBRDF);
         L_brdf = reflect(-V, H_brdf);
     } else {
-        L_brdf = SampleCosineHemisphere(noiseValBRDF, N);
+        L_brdf = SampleCosineHemisphere(noiseValBRDF, ShadingN);
         H_brdf = normalize(V + L_brdf);
     }
 
-    float NdotL_brdf = max(dot(N, L_brdf), 0.001);
-    float NdotV_brdf = max(dot(N, V), 0.001);
-    float NdotH_brdf = max(dot(N, H_brdf), 0.0);
+    float NdotL_brdf = max(dot(ShadingN, L_brdf), 0.001);
+    float NdotV_brdf = max(dot(ShadingN, V), 0.001);
+    float NdotH_brdf = max(dot(ShadingN, H_brdf), 0.0);
     float VdotH_brdf = max(dot(V, H_brdf), 0.0);
     float cosSunEdge = cos(S_RADIUS);
     float pdf_light_B = (dot(L_brdf, S_DIR) >= cosSunEdge) ? pdf_light : 0.0;
-
     if (NdotL_brdf > 0.0 && pdf_light_B > 0.0) {
         float D_brdf = D_GGX(NdotH_brdf, alpha);
         float G1_V_brdf = G1_Smith(NdotV_brdf, alpha);
@@ -201,24 +198,19 @@ void DirectionalLightMIS(vec3 WorldPos, vec3 N, vec3 V, float Roughness, float M
         float pdf_brdf_B_diff = NdotL_brdf / PI_VAL;
         float pdf_brdf_B = P_diff * pdf_brdf_B_diff + P_spec * pdf_brdf_B_spec;
         float weight_brdf = (pdf_brdf_B * pdf_brdf_B) / max(pdf_light_B * pdf_light_B + pdf_brdf_B * pdf_brdf_B, 0.0001);
-
-        vec3 origin = WorldPos + N * mix(0.15, 0.02, NdotL_brdf) + L_brdf * 0.05;
+        vec3 origin = WorldPos + GeomN * mix(0.15, 0.02, NdotL_brdf) + L_brdf * 0.05;
         float shadow = traceShadow(origin, L_brdf, 1000.0);
-
         float G_brdf = G_Smith_Correlated(NdotV_brdf, NdotL_brdf, alpha);
         vec3 F_brdf = F0_demod + (1.0 - F0_demod) * pow(2.0, (-5.55473 * VdotH_brdf - 6.98316) * VdotH_brdf);
         vec3 kD_brdf = (vec3(1.0) - F_brdf) * (1.0 - Metallic);
-
         vec3 spec = (D_brdf * G_brdf * F_brdf) / (4.0 * NdotV_brdf * NdotL_brdf + 0.0001) * S_COLOR * NdotL_brdf;
-        spec = min(spec, vec3(10.0));
-        vec3 diff = kD_brdf / PI_VAL * S_COLOR * NdotL_brdf;
-
+        vec3 diff = kD_brdf * f_Lambert(vec3(1.0)) * S_COLOR * NdotL_brdf;
         diffOut += (diff * pdf_light_B / pdf_brdf_B) * shadow * weight_brdf;
         specOut += (spec * pdf_light_B / pdf_brdf_B) * shadow * weight_brdf;
     }
 }
 
-void SphericalPositionalLightMIS(vec3 WorldPos, vec3 N, vec3 V, float Roughness, float Metallic, vec3 Albedo, vec2 noiseValLight, vec2 noiseValBRDF, float randSelect, Light light, out vec3 diffOut, out vec3 specOut) {
+void SphericalPositionalLightMIS(vec3 WorldPos, vec3 ShadingN, vec3 GeomN, vec3 V, float Roughness, float Metallic, vec3 Albedo, vec2 noiseValLight, vec2 noiseValBRDF, float randSelect, Light light, out vec3 diffOut, out vec3 specOut) {
     vec3 P_POS = light.posAndType.xyz;
     vec3 P_COLOR = light.colorAndStrength.xyz;
     float P_STRENGTH = light.colorAndStrength.w;
@@ -231,7 +223,6 @@ void SphericalPositionalLightMIS(vec3 WorldPos, vec3 N, vec3 V, float Roughness,
     vec3 F0_demod = mix(vec3(0.04), Albedo, Metallic);
     float P_spec = clamp(dot(F0_demod, vec3(0.2126, 0.7152, 0.0722)), 0.05, 0.95);
     float P_diff = 1.0 - P_spec;
-
     vec3 L_light = SphericalPositionalLightRayDirection(noiseValLight, WorldPos, P_POS, P_RADIUS);
     vec3 lightVec = P_POS - WorldPos;
     float distToCenterSq = dot(lightVec, lightVec);
@@ -240,33 +231,29 @@ void SphericalPositionalLightMIS(vec3 WorldPos, vec3 N, vec3 V, float Roughness,
     float cosThetaMax = sqrt(max(1.0 - sinThetaMaxSq, 0.0));
     float solidAngle = 2.0 * PI_VAL * (1.0 - cosThetaMax);
     float pdf_light = 1.0 / max(solidAngle, 0.0001);
-
-    float NdotL_light = max(dot(N, L_light), 0.001);
-    float NdotV_light = max(dot(N, V), 0.001);
+    float NdotL_light = max(dot(ShadingN, L_light), 0.001);
+    float NdotV_light = max(dot(ShadingN, V), 0.001);
     vec3 H_light = normalize(V + L_light);
-    float NdotH_light = max(dot(N, H_light), 0.0);
+    float NdotH_light = max(dot(ShadingN, H_light), 0.0);
     float VdotH_light = max(dot(V, H_light), 0.0);
+
     float D_light = D_GGX(NdotH_light, alpha);
     float G1_V_light = G1_Smith(NdotV_light, alpha);
     float pdf_brdf_S_spec = (G1_V_light * D_light) / (4.0 * NdotV_light);
     float pdf_brdf_S_diff = NdotL_light / PI_VAL;
     float pdf_brdf_S = P_diff * pdf_brdf_S_diff + P_spec * pdf_brdf_S_spec;
     float weight_light = (pdf_light * pdf_light) / max(pdf_light * pdf_light + pdf_brdf_S * pdf_brdf_S, 0.0001);
-
     float uniformAtten = P_STRENGTH / max(distToCenterSq, 0.0001);
 
     if (NdotL_light > 0.0) {
-        vec3 origin = WorldPos + N * mix(0.15, 0.02, NdotL_light) + L_light * 0.05;
+        vec3 origin = WorldPos + GeomN * mix(0.15, 0.02, NdotL_light) + L_light * 0.05;
         float shadow = traceShadow(origin, L_light, distToCenter - 0.05);
 
         float G_light = G_Smith_Correlated(NdotV_light, NdotL_light, alpha);
         vec3 F_light = F0_demod + (1.0 - F0_demod) * pow(2.0, (-5.55473 * VdotH_light - 6.98316) * VdotH_light);
         vec3 kD_light = (vec3(1.0) - F_light) * (1.0 - Metallic);
-
         vec3 spec = (D_light * G_light * F_light) / (4.0 * NdotV_light * NdotL_light + 0.0001) * P_COLOR * uniformAtten * NdotL_light;
-        spec = min(spec, vec3(10.0));
-        vec3 diff = kD_light / PI_VAL * P_COLOR * uniformAtten * NdotL_light;
-
+        vec3 diff = kD_light * f_Lambert(vec3(1.0)) * P_COLOR * uniformAtten * NdotL_light;
         diffOut += diff * shadow * weight_light;
         specOut += spec * shadow * weight_light;
     }
@@ -274,14 +261,14 @@ void SphericalPositionalLightMIS(vec3 WorldPos, vec3 N, vec3 V, float Roughness,
     vec3 L_brdf;
     vec3 H_brdf;
     if (randSelect < P_spec) {
-        H_brdf = SampleGGXVNDF(V, N, alpha, noiseValBRDF);
+        H_brdf = SampleGGXVNDF(V, ShadingN, alpha, noiseValBRDF);
         L_brdf = reflect(-V, H_brdf);
     } else {
-        L_brdf = SampleCosineHemisphere(noiseValBRDF, N);
+        L_brdf = SampleCosineHemisphere(noiseValBRDF, ShadingN);
         H_brdf = normalize(V + L_brdf);
     }
 
-    float NdotL_brdf = max(dot(N, L_brdf), 0.001);
+    float NdotL_brdf = max(dot(ShadingN, L_brdf), 0.001);
     vec3 oc = WorldPos - P_POS;
     float b = dot(oc, L_brdf);
     float c = distToCenterSq - P_RADIUS * P_RADIUS;
@@ -291,8 +278,8 @@ void SphericalPositionalLightMIS(vec3 WorldPos, vec3 N, vec3 V, float Roughness,
         float t = -b - sqrt(discriminant);
         if (t > 0.0) {
             float pdf_light_B = pdf_light;
-            float NdotV_brdf = max(dot(N, V), 0.001);
-            float NdotH_brdf = max(dot(N, H_brdf), 0.0);
+            float NdotV_brdf = max(dot(ShadingN, V), 0.001);
+            float NdotH_brdf = max(dot(ShadingN, H_brdf), 0.0);
             float VdotH_brdf = max(dot(V, H_brdf), 0.0);
             float D_brdf = D_GGX(NdotH_brdf, alpha);
             float G1_V_brdf = G1_Smith(NdotV_brdf, alpha);
@@ -300,18 +287,14 @@ void SphericalPositionalLightMIS(vec3 WorldPos, vec3 N, vec3 V, float Roughness,
             float pdf_brdf_B_diff = NdotL_brdf / PI_VAL;
             float pdf_brdf_B = P_diff * pdf_brdf_B_diff + P_spec * pdf_brdf_B_spec;
             float weight_brdf = (pdf_brdf_B * pdf_brdf_B) / max(pdf_light_B * pdf_light_B + pdf_brdf_B * pdf_brdf_B, 0.0001);
-
-            vec3 origin = WorldPos + N * mix(0.15, 0.02, NdotL_brdf) + L_brdf * 0.05;
+            vec3 origin = WorldPos + GeomN * mix(0.15, 0.02, NdotL_brdf) + L_brdf * 0.05;
             float shadow = traceShadow(origin, L_brdf, t - 0.05);
 
             float G_brdf = G_Smith_Correlated(NdotV_brdf, NdotL_brdf, alpha);
             vec3 F_brdf = F0_demod + (1.0 - F0_demod) * pow(2.0, (-5.55473 * VdotH_brdf - 6.98316) * VdotH_brdf);
             vec3 kD_brdf = (vec3(1.0) - F_brdf) * (1.0 - Metallic);
-
             vec3 spec = (D_brdf * G_brdf * F_brdf) / (4.0 * NdotV_brdf * NdotL_brdf + 0.0001) * P_COLOR * uniformAtten * NdotL_brdf;
-            spec = min(spec, vec3(10.0));
-            vec3 diff = kD_brdf / PI_VAL * P_COLOR * uniformAtten * NdotL_brdf;
-
+            vec3 diff = kD_brdf * f_Lambert(vec3(1.0)) * P_COLOR * uniformAtten * NdotL_brdf;
             diffOut += (diff * pdf_light) / pdf_brdf_B * shadow * weight_brdf;
             specOut += (spec * pdf_light) / pdf_brdf_B * shadow * weight_brdf;
         }
@@ -334,14 +317,16 @@ void main()
     }
 
     vec3 WorldPos = posData.xyz;
-    vec3 Normal = normalize(texture(gNormal, inUV).xyz);
+    vec3 ShadingNormal = normalize(texture(gNormal, inUV).xyz);
     float Roughness = texture(gRoughness, inUV).r;
     float Metallic = texture(gMetallic, inUV).r;
+
+    vec3 GeomNormal = normalize(texture(gMetallic, inUV).yzw);
     vec3 Albedo = texture(gAlbedo, inUV).rgb;
+
     vec3 ViewVec = normalize(pc.cameraPos - WorldPos);
     vec3 DiffuseIrradiance = vec3(0.0);
     vec3 SpecularRadiance = vec3(0.0);
-
     ivec2 noiseSize = textureSize(blueNoiseTex, 0);
     float fif   = float(pc.frameIndex);
     ivec2 tOff0 = ivec2(fract(vec2(fif * 0.6180339887, fif * 0.3247179572)) * vec2(noiseSize));
@@ -352,16 +337,15 @@ void main()
     vec3 noiseBRDFDir  = texelFetch(blueNoiseTex, (pixelCoord + tOff0 + ivec2(17, 31)) % noiseSize, 0).rgb;
     vec3 noiseLightPos = texelFetch(blueNoiseTex, (pixelCoord + tOff1                ) % noiseSize, 0).rgb;
     vec3 noiseBRDFPos  = texelFetch(blueNoiseTex, (pixelCoord + tOff1 + ivec2(43, 79)) % noiseSize, 0).rgb;
-
     for (uint i = 0; i < lightCount; ++i) {
         Light currentLight = lights[i];
         vec3 diffMIS = vec3(0.0);
         vec3 specMIS = vec3(0.0);
 
         if (currentLight.posAndType.w == 0.0) {
-            DirectionalLightMIS(WorldPos, Normal, ViewVec, Roughness, Metallic, Albedo, noiseLightDir.rg, noiseBRDFDir.rg, noiseBRDFDir.b, currentLight, diffMIS, specMIS);
+            DirectionalLightMIS(WorldPos, ShadingNormal, GeomNormal, ViewVec, Roughness, Metallic, Albedo, noiseLightDir.rg, noiseBRDFDir.rg, noiseBRDFDir.b, currentLight, diffMIS, specMIS);
         } else {
-            SphericalPositionalLightMIS(WorldPos, Normal, ViewVec, Roughness, Metallic, Albedo, noiseLightPos.rg, noiseBRDFPos.rg, noiseBRDFPos.b, currentLight, diffMIS, specMIS);
+            SphericalPositionalLightMIS(WorldPos, ShadingNormal, GeomNormal, ViewVec, Roughness, Metallic, Albedo, noiseLightPos.rg, noiseBRDFPos.rg, noiseBRDFPos.b, currentLight, diffMIS, specMIS);
         }
 
         DiffuseIrradiance += diffMIS;
@@ -369,30 +353,28 @@ void main()
     }
 
     vec2 noiseGI = texelFetch(blueNoiseTex, (pixelCoord + tOff3) % noiseSize, 0).rg;
-    vec3 giDir = SampleCosineHemisphere(noiseGI, Normal);
-    float NdotL_gi = max(dot(Normal, giDir), 0.001);
+    vec3 giDir = SampleCosineHemisphere(noiseGI, ShadingNormal);
+    float NdotL_gi = max(dot(ShadingNormal, giDir), 0.001);
 
-    vec3 originGI = WorldPos + Normal * 0.01 + giDir * 0.05;
+    vec3 originGI = WorldPos + GeomNormal * 0.01 + giDir * 0.05;
     reflPayload.color = vec3(0.0);
     reflPayload.distance = -1.0;
     reflPayload.targetLod = 8.0;
     traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT | gl_RayFlagsCullBackFacingTrianglesEXT, 0xFF, 1, 0, 1, originGI, 0.01, giDir, 100.0, 1);
-
-    vec3 indirectDiffuse = reflPayload.color * (1.0 - Metallic);
-
+    vec3 indirectDiffuse = reflPayload.color * f_Lambert(vec3(1.0)) * PI_VAL * (1.0 - Metallic);
     vec3 noiseRefl = texelFetch(blueNoiseTex, (pixelCoord + tOff2                ) % noiseSize, 0).rgb;
     float alphaRefl = max(Roughness * Roughness, 0.001);
 
-    vec3 H_refl = SampleGGXVNDF(ViewVec, Normal, alphaRefl, noiseRefl.rg);
+    vec3 H_refl = SampleGGXVNDF(ViewVec, ShadingNormal, alphaRefl, noiseRefl.rg);
     vec3 L_refl = reflect(-ViewVec, H_refl);
-    float NdotL_refl = max(dot(Normal, L_refl), 0.001);
-    float NdotV_refl = max(dot(Normal, ViewVec), 0.001);
+    float NdotL_refl = max(dot(ShadingNormal, L_refl), 0.001);
+    float NdotV_refl = max(dot(ShadingNormal, ViewVec), 0.001);
     vec3 F0_demod = mix(vec3(0.04), Albedo, Metallic);
     float VdotH_refl = max(dot(ViewVec, H_refl), 0.001);
 
     vec3 indirectSpec = vec3(0.0);
     if (NdotL_refl > 0.0 && Roughness < 0.8) {
-        vec3 originRefl = WorldPos + Normal * 0.01 + L_refl * 0.05;
+        vec3 originRefl = WorldPos + GeomNormal * 0.01 + L_refl * 0.05;
         reflPayload.color = vec3(0.0);
         reflPayload.distance = -1.0;
         reflPayload.targetLod = Roughness * 10.0;
@@ -404,19 +386,15 @@ void main()
         float G1_V_refl = G1_Smith(NdotV_refl, alphaRefl);
         float brdfWeight = G_refl / max(G1_V_refl, 0.0001);
         vec3 F_refl = F0_demod + (max(vec3(1.0 - Roughness), F0_demod) - F0_demod) * pow(2.0, (-5.55473 * VdotH_refl - 6.98316) * VdotH_refl);
-
         indirectSpec = reflPayload.color * brdfWeight * F_refl;
     }
 
-    float NdotV = max(dot(Normal, ViewVec), 0.001);
+    float NdotV = max(dot(ShadingNormal, ViewVec), 0.001);
     vec3 F0 = mix(vec3(0.04), Albedo, Metallic);
 
     vec3 totalDiffuse = indirectDiffuse + DiffuseIrradiance;
     vec3 totalSpecular = indirectSpec + SpecularRadiance;
-    vec3 demodulatedTotalSpec = totalSpecular / max(F0, vec3(0.001));
-
-    totalDiffuse = min(totalDiffuse, vec3(5.0));
-    demodulatedTotalSpec = min(demodulatedTotalSpec, vec3(5.0));
+    vec3 demodulatedTotalSpec = totalSpecular / max(F0, vec3(0.1));
 
     imageStore(indirectDiffuseImage, pixelCoord, vec4(totalDiffuse, 1.0));
     imageStore(indirectSpecularImage, pixelCoord, vec4(demodulatedTotalSpec, 1.0));

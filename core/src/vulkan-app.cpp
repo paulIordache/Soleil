@@ -58,40 +58,40 @@ namespace VK {
 
     void SetupImGuiStyle() {
         ImGuiStyle &style = ImGui::GetStyle();
-        ImVec4* colors = style.Colors;
+        ImVec4 *colors = style.Colors;
 
         // TRUE PITCH BLACK THEME
-        colors[ImGuiCol_Text]                   = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-        colors[ImGuiCol_WindowBg]               = ImVec4(0.00f, 0.00f, 0.00f, 0.96f); // Absolute black
-        colors[ImGuiCol_Border]                 = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
-        colors[ImGuiCol_FrameBg]                = ImVec4(0.08f, 0.08f, 0.08f, 1.00f); // Very dark gray for inputs
-        colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
-        colors[ImGuiCol_FrameBgActive]          = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-        colors[ImGuiCol_TitleBg]                = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
-        colors[ImGuiCol_TitleBgActive]          = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
-        colors[ImGuiCol_CheckMark]              = ImVec4(0.00f, 1.00f, 0.40f, 1.00f); // Neon green
-        colors[ImGuiCol_SliderGrab]             = ImVec4(0.00f, 1.00f, 0.40f, 1.00f);
-        colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.00f, 0.80f, 0.30f, 1.00f);
-        colors[ImGuiCol_Button]                 = ImVec4(0.12f, 0.12f, 0.12f, 1.00f);
-        colors[ImGuiCol_ButtonHovered]          = ImVec4(0.00f, 0.60f, 0.30f, 1.00f);
-        colors[ImGuiCol_ButtonActive]           = ImVec4(0.00f, 1.00f, 0.40f, 1.00f);
-        colors[ImGuiCol_Header]                 = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
-        colors[ImGuiCol_HeaderHovered]          = ImVec4(0.00f, 0.60f, 0.30f, 0.80f);
-        colors[ImGuiCol_HeaderActive]           = ImVec4(0.00f, 1.00f, 0.40f, 1.00f);
-        colors[ImGuiCol_PlotLines]              = ImVec4(0.00f, 1.00f, 1.00f, 1.00f); // Cyan graph
-        colors[ImGuiCol_PlotLinesHovered]       = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-        colors[ImGuiCol_PlotHistogram]          = ImVec4(1.00f, 0.00f, 0.50f, 1.00f); // Pink/Magenta histogram
-        colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.40f, 0.80f, 1.00f);
+        colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+        colors[ImGuiCol_WindowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.96f); // Absolute black
+        colors[ImGuiCol_Border] = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
+        colors[ImGuiCol_FrameBg] = ImVec4(0.08f, 0.08f, 0.08f, 1.00f); // Very dark gray for inputs
+        colors[ImGuiCol_FrameBgHovered] = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+        colors[ImGuiCol_FrameBgActive] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+        colors[ImGuiCol_TitleBg] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+        colors[ImGuiCol_TitleBgActive] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+        colors[ImGuiCol_CheckMark] = ImVec4(0.00f, 1.00f, 0.40f, 1.00f); // Neon green
+        colors[ImGuiCol_SliderGrab] = ImVec4(0.00f, 1.00f, 0.40f, 1.00f);
+        colors[ImGuiCol_SliderGrabActive] = ImVec4(0.00f, 0.80f, 0.30f, 1.00f);
+        colors[ImGuiCol_Button] = ImVec4(0.12f, 0.12f, 0.12f, 1.00f);
+        colors[ImGuiCol_ButtonHovered] = ImVec4(0.00f, 0.60f, 0.30f, 1.00f);
+        colors[ImGuiCol_ButtonActive] = ImVec4(0.00f, 1.00f, 0.40f, 1.00f);
+        colors[ImGuiCol_Header] = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+        colors[ImGuiCol_HeaderHovered] = ImVec4(0.00f, 0.60f, 0.30f, 0.80f);
+        colors[ImGuiCol_HeaderActive] = ImVec4(0.00f, 1.00f, 0.40f, 1.00f);
+        colors[ImGuiCol_PlotLines] = ImVec4(0.00f, 1.00f, 1.00f, 1.00f); // Cyan graph
+        colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+        colors[ImGuiCol_PlotHistogram] = ImVec4(1.00f, 0.00f, 0.50f, 1.00f); // Pink/Magenta histogram
+        colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.40f, 0.80f, 1.00f);
 
-        style.WindowRounding    = 0.0f; // Sharp, aggressive corners
-        style.ChildRounding     = 0.0f;
-        style.FrameRounding     = 2.0f;
-        style.PopupRounding     = 0.0f;
+        style.WindowRounding = 0.0f; // Sharp, aggressive corners
+        style.ChildRounding = 0.0f;
+        style.FrameRounding = 2.0f;
+        style.PopupRounding = 0.0f;
         style.ScrollbarRounding = 0.0f;
-        style.GrabRounding      = 2.0f;
-        style.TabRounding       = 0.0f;
-        style.WindowBorderSize  = 1.0f;
-        style.FrameBorderSize   = 1.0f;
+        style.GrabRounding = 2.0f;
+        style.TabRounding = 0.0f;
+        style.WindowBorderSize = 1.0f;
+        style.FrameBorderSize = 1.0f;
     }
 
     void VulkanApp::CollectTimestamps(uint32_t frameIndex) {
@@ -273,7 +273,7 @@ namespace VK {
 
         m_vs = createShaderModuleFromText(m_device, "../../shaders/g_buffer_norm.vert");
         m_fs = createShaderModuleFromText(m_device, "../../shaders/g_buffer_norm.frag");
-        m_rgenModule = createShaderModuleFromText(m_device, "../../shaders/rt_light_oren_nayar.rgen");
+        m_rgenModule = createShaderModuleFromText(m_device, "../../shaders/rt_light_lambert.rgen");
         m_rmissModule = createShaderModuleFromText(m_device, "../../shaders/rt_shadow.rmiss");
         m_rchitModule = createShaderModuleFromText(m_device, "../../shaders/rt_shadow.rchit");
         m_reflMissModule = createShaderModuleFromText(m_device, "../../shaders/rt_reflection.rmiss");
@@ -461,7 +461,8 @@ namespace VK {
 
                 ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "[ GPU FRAMERATE ]");
                 ImGui::Text("CURRENT: %5.1f FPS  |  AVG: %5.1f FPS", ImGui::GetIO().Framerate, avgFps);
-                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "MIN: %.1f  |  MAX: %.1f", minFps == 9999.0f ? 0 : minFps, maxFps);
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "MIN: %.1f  |  MAX: %.1f",
+                                   minFps == 9999.0f ? 0 : minFps, maxFps);
                 ImGui::PlotLines("##fps", m_fpsHistory, FPS_HISTORY_SIZE, m_fpsHistoryOffset,
                                  nullptr, minFps > 5.0f ? minFps - 5.0f : 0.0f, maxFps + 5.0f, ImVec2(320, 60));
 
@@ -476,7 +477,7 @@ namespace VK {
 
                 size_t vramUsage = 0, vramBudget = 0;
                 m_vkCore.GetVRAMUsage(vramUsage, vramBudget);
-                float vramRatio = vramBudget > 0 ? (float)vramUsage / (float)vramBudget : 0.0f;
+                float vramRatio = vramBudget > 0 ? (float) vramUsage / (float) vramBudget : 0.0f;
                 float vramMB = vramUsage / (1024.0f * 1024.0f);
                 float vramBudgetMB = vramBudget / (1024.0f * 1024.0f);
 
