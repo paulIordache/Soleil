@@ -1,22 +1,22 @@
 Parameter,Value
 GPU,NVIDIA GeForce RTX 5070
 Resolution,1920x1080
-Total Scene Vertices,226229
-Frames Tracked (Hardware),5673
-Frames Tracked (GPU Stages),5670
+Total Scene Vertices,235975
+Frames Tracked (Hardware),12648
+Frames Tracked (GPU Stages),12645
 
-Avg CPU Frame Time (ms),4.98656
-Avg Total GPU Time (ms),4.95338
-Avg VRAM Usage (MB),2626
-Avg System RAM Usage (MB),956.39
+Avg CPU Frame Time (ms),4.35732
+Avg Total GPU Time (ms),4.30852
+Avg VRAM Usage (MB),2821.85
+Avg System RAM Usage (MB),991.598
 
 GPU Stage,Average Time (ms)
-Comp_Sky,0.0542726
-G-Buffer,0.461626
-RT,2.81368
-SVGF_Spatial_1,0.272986
-SVGF_Spatial_16,0.264719
-SVGF_Spatial_2,0.260244
-SVGF_Spatial_4,0.254554
-SVGF_Spatial_8,0.255719
-SVGF_Temp,0.315578
+Comp_Sky,0.0556176
+G-Buffer,0.498706
+RT,2.42556
+SVGF_Spatial_1,0.225664
+SVGF_Spatial_16,0.219139
+SVGF_Spatial_2,0.215486
+SVGF_Spatial_4,0.211895
+SVGF_Spatial_8,0.212398
+SVGF_Temp,0.244056

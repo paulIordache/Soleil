@@ -177,34 +177,11 @@ namespace VK {
         float m_dirLightStrength = 1.5f;
         float m_dirLightAngle = 0.001f;
 
-        static constexpr int MAX_SPH_LIGHTS = 16;
-        glm::vec3 m_sphLightPos[MAX_SPH_LIGHTS] = {
-            glm::vec3(-58.6421f, -9.44338f, -0.765313f),
-            glm::vec3(-4.20085f, -10.1262f, 0.786111f),
-            glm::vec3(53.6714f, -9.1339f, 1.66376f),
-            glm::vec3(51.3524f, -9.67212f, -15.8288f),
-            glm::vec3(51.9909f, -10.2458f, 21.5527f),
-            glm::vec3(-4.85255f, -8.90427f, 23.0227f),
-            glm::vec3(-62.0994f, -8.25143f, 21.3266f),
-            glm::vec3(-56.0975f, -10.0154f, -21.06f),
-            glm::vec3(-7.74807f, -9.23215f, -21.3797f),
-            glm::vec3(-6.9897f, -32.87f, 21.6555f),
-            glm::vec3(-6.99545f, -32.9049f, -17.865f),
-            glm::vec3(-62.8297f, -32.0874f, 1.6272f),
-            glm::vec3(54.9054f, -33.598f, 2.16457f),
-            glm::vec3(45.2338f, -32.016f, -16.5506f),
-            glm::vec3(-60.9672f, -32.9498f, 24.4051f),
-            glm::vec3(-10.2212f, -49.0523f, -0.0971115f)
-        };
-
-        bool m_sphLightEnabled[MAX_SPH_LIGHTS] = {
-            true, true, true, true, true, true, true, true,
-            true, true, true, true, true, true, true, true
-        };
-
+        glm::vec3 m_sphLightPos = glm::vec3(-4.20085f, -10.1262f, 0.786111f);
         glm::vec3 m_sphLightColor = glm::vec3(1.0f, 0.84f, 0.67f);
         float m_sphLightStrength = 50.0f;
         float m_sphLightRadius = 0.5f;
+        bool m_sphLightEnabled = true;
 
         glm::vec3 m_clearColor = glm::vec3(0.0f);
         glm::vec3 m_position = glm::vec3(0.0f);
