@@ -1,6 +1,3 @@
-//
-// Created by Paul on 10/21/2025.
-//
 
 #ifndef BITMAP_H
 #define BITMAP_H

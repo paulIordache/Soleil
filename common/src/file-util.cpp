@@ -7,9 +7,7 @@
 
 #include "windows-macros.h"
 
-// ------------------------------------------------------------
-// Text file reader (for GLSL sources, etc.)
-// ------------------------------------------------------------
+
 bool ReadFile(const char *pFileName, std::string &outFile) {
     std::ifstream f(pFileName);
 

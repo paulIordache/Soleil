@@ -202,6 +202,7 @@ void DirectionalLightMIS(vec3 WorldPos, vec3 ShadingN, vec3 GeomN, vec3 V, float
         float shadow = traceShadow(origin, L_brdf, 1000.0);
         float G_brdf = G_Smith_Correlated(NdotV_brdf, NdotL_brdf, alpha);
         vec3 F_brdf = F0_demod + (1.0 - F0_demod) * pow(2.0, (-5.55473 * VdotH_brdf - 6.98316) * VdotH_brdf);
+
         vec3 kD_brdf = (vec3(1.0) - F_brdf) * (1.0 - Metallic);
         vec3 spec = (D_brdf * G_brdf * F_brdf) / (4.0 * NdotV_brdf * NdotL_brdf + 0.0001) * S_COLOR * NdotL_brdf;
         vec3 diff = kD_brdf * f_Lambert(vec3(1.0)) * S_COLOR * NdotL_brdf;

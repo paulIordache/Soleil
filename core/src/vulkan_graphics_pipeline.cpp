@@ -22,6 +22,8 @@ namespace VK {
         bool IsCubemap = false;
         CreateDescriptorSetLayout(IsVB, IsIB, IsTex, IsUniform, IsCubemap);
 
+        CreateDescriptorPool(2048);
+
         InitCommon(pWindow, RenderPass, vs, fs, ColorFormats, DepthFormat, VK_COMPARE_OP_LESS);
     }
 
@@ -30,6 +32,8 @@ namespace VK {
         m_numImages = pd.NumImages;
 
         CreateDescriptorSetLayout(pd.IsVB, pd.IsIB, pd.IsTex2D, pd.IsUniform, pd.IsTexCube);
+
+        CreateDescriptorPool(2048);
 
         std::vector<VkFormat> formats;
         formats.push_back(pd.ColorFormat);
@@ -204,6 +208,11 @@ namespace VK {
     }
 
     void GraphicsPipelineV2::CreateDescriptorPool(int MaxSets) {
+        if (m_descriptorPool != VK_NULL_HANDLE) {
+            vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
+            m_descriptorPool = VK_NULL_HANDLE;
+        }
+
         std::vector<VkDescriptorPoolSize> PoolSizes = {
             {
                 .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
@@ -348,7 +357,6 @@ namespace VK {
 
     void GraphicsPipelineV2::AllocateDescriptorSets(int NumSubmeshes,
                                                     std::vector<std::vector<VkDescriptorSet> > &DescriptorSets) {
-        CreateDescriptorPool(NumSubmeshes * m_numImages);
         AllocateDescriptorSetsInternal(NumSubmeshes, DescriptorSets);
     }
 

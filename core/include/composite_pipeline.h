@@ -23,6 +23,7 @@ namespace VK {
     struct CompositePushConstants {
         alignas(16) glm::vec3 cameraPos;
         alignas(16) glm::vec3 lightDir;
+        alignas(4) int toneMapperMode;
     };
 
     struct CompositeUBO {
@@ -56,8 +57,8 @@ namespace VK {
 
         void UpdateUBO(int imageIndex, const CompositeUBO &uboData);
 
-        void RecordCommandBuffer(struct ::VkCommandBuffer_T *cmd, int imageIndex, unsigned width, unsigned height,
-                                 const glm::vec3 &cameraPos, const glm::vec3 &lightDir) const;
+        void RecordCommandBuffer(::VkCommandBuffer_T *cmd, int imageIndex, unsigned width, unsigned height,
+                                 const glm::vec3 & cameraPos, const glm::vec3 & lightDir, int toneMapperMode) const;
 
     private:
         VkSampler m_gBufferSampler = nullptr;

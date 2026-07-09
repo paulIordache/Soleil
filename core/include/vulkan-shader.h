@@ -1,6 +1,3 @@
-//
-// Created by Paul on 9/29/2025.
-//
 
 #ifndef VULKAN_SHADER_H
 #define VULKAN_SHADER_H

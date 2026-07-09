@@ -1,6 +1,4 @@
-//
-// Created by Paul on 10/21/2025.
-//
+
 
 #ifndef ECT_CUBEMAP_H
 #define ECT_CUBEMAP_H

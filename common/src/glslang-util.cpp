@@ -6,6 +6,9 @@
 #include "glslang/Public/resource_limits_c.h"
 #include "glslang-util.h"
 
+#include <filesystem>
+#include <unordered_map>
+
 namespace VK {
     void printShaderSource(const char *text) {
         int line = 1;
@@ -27,7 +30,7 @@ namespace VK {
 
     bool compileShader(VkDevice &Device, glslang_stage_t Stage, const char *pShaderCode,
                               Shader &ShaderModule) {
-        glslang_input_t input = {
+        const glslang_input_t input = {
             .language = GLSLANG_SOURCE_GLSL,
             .stage = Stage,
             .client = GLSLANG_CLIENT_VULKAN,
@@ -75,9 +78,7 @@ namespace VK {
 
         ShaderModule.init(program);
 
-        const char *spirv_messages = glslang_program_SPIRV_get_messages(program);
-
-        if (spirv_messages) {
+        if (const char *spirv_messages = glslang_program_SPIRV_get_messages(program)) {
             fprintf(stderr, "SPIR-V message: '%s'", spirv_messages);
         }
 
@@ -99,48 +100,27 @@ namespace VK {
     }
 
 
-    glslang_stage_t ShaderStageFromFilename(const char *pFilename) {
-        std::string s(pFilename);
+    glslang_stage_t ShaderStageFromFilename(const char* pFilename) {
+        static const unordered_map<std::string_view, glslang_stage_t> extensionMap = {
+            {".vert", GLSLANG_STAGE_VERTEX},
+            {".frag", GLSLANG_STAGE_FRAGMENT},
+            {".geom", GLSLANG_STAGE_GEOMETRY},
+            {".comp", GLSLANG_STAGE_COMPUTE},
+            {".tesc", GLSLANG_STAGE_TESSCONTROL},
+            {".tese", GLSLANG_STAGE_TESSEVALUATION},
+            {".rgen", GLSLANG_STAGE_RAYGEN},
+            {".rchit", GLSLANG_STAGE_CLOSESTHIT},
+            {".rmiss", GLSLANG_STAGE_MISS}
+        };
 
-        if (s.ends_with(".vert")) {
-            return GLSLANG_STAGE_VERTEX;
+        const std::filesystem::path path(pFilename);
+        const std::string ext = path.extension().string();
+
+        if (const auto it = extensionMap.find(ext); it != extensionMap.end()) {
+            return it->second;
         }
 
-        if (s.ends_with(".frag")) {
-            return GLSLANG_STAGE_FRAGMENT;
-        }
-
-        if (s.ends_with(".geom")) {
-            return GLSLANG_STAGE_GEOMETRY;
-        }
-
-        if (s.ends_with(".comp")) {
-            return GLSLANG_STAGE_COMPUTE;
-        }
-
-        if (s.ends_with(".tesc")) {
-            return GLSLANG_STAGE_TESSCONTROL;
-        }
-
-        if (s.ends_with(".tese")) {
-            return GLSLANG_STAGE_TESSEVALUATION;
-        }
-
-        if (s.ends_with(".rgen")) {
-            return GLSLANG_STAGE_RAYGEN;
-        }
-
-        if (s.ends_with(".rchit")) {
-            return GLSLANG_STAGE_CLOSESTHIT;
-        }
-
-        if (s.ends_with(".rmiss")) {
-            return GLSLANG_STAGE_MISS;
-        }
-
-        printf("Unknown shader stage in '%s'\n", pFilename);
-        exit(1);
-
-        return GLSLANG_STAGE_VERTEX;
+        fprintf(stderr, "Unknown shader stage in '%s'\n", pFilename);
+        exit(EXIT_FAILURE);
     }
 }

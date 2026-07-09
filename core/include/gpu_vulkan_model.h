@@ -13,11 +13,11 @@ namespace VK {
         alignas(16) glm::mat4 WVP;
         alignas(16) glm::mat4 World;
         alignas(16) glm::mat4 prevWVP;
-        alignas(16) glm::vec4 Ka_Ni; // RGB = Ambient (Ka), A = Optical Density (Ni)
-        alignas(16) glm::vec4 Kd_Ns; // RGB = Diffuse (Kd), A = Specular Exponent (Ns)
-        alignas(16) glm::vec4 Ks_d;  // RGB = Specular (Ks), A = Dissolve/Opacity (d)
-        alignas(16) glm::vec4 Ke_Tf; // RGB = Emissive (Ke), A = Transmission Filter (Tf grayscale) OR separate
-        alignas(16) glm::vec4 Tf;    // RGB = Transmission Filter (Color)
+        alignas(16) glm::vec4 Ka_Ni;
+        alignas(16) glm::vec4 Kd_Ns;
+        alignas(16) glm::vec4 Ks_d;
+        alignas(16) glm::vec4 Ke_Tf;
+        alignas(16) glm::vec4 Tf;
     };
 
 

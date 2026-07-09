@@ -1,6 +1,3 @@
-//
-// Created by Paul on 10/20/2025.
-//
 
 #include "../include/vulkan_imgui.h"
 

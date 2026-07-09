@@ -1,6 +1,4 @@
-//
-// Created by Paul on 18/10/2025.
-//
+
 
 #ifndef VULKAN_ENGINE_MODEL_DESC_H
 #define VULKAN_ENGINE_MODEL_DESC_H

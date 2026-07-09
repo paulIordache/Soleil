@@ -3,6 +3,10 @@
 #include "vulkan-util.h"
 #include <stdio.h>
 #include <glm/detail/_noise.hpp>
+#include <glm/detail/_noise.hpp>
+#include <glm/detail/_noise.hpp>
+#include <glm/detail/_noise.hpp>
+#include <glm/detail/_noise.hpp>
 
 namespace VK {
     CompositePipeline::CompositePipeline(VulkanCore *core, VkRenderPass renderPass, VkFormat colorFormat)
@@ -311,7 +315,8 @@ namespace VK {
         const uint32_t width,
         const uint32_t height,
         const glm::vec3 &cameraPos,
-        const glm::vec3 &lightDir) const {
+        const glm::vec3 &lightDir,
+        int toneMapperMode) const {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1,
@@ -333,6 +338,7 @@ namespace VK {
         CompositePushConstants pc{};
         pc.cameraPos = cameraPos;
         pc.lightDir = lightDir;
+        pc.toneMapperMode = toneMapperMode;
 
         vkCmdPushConstants(cmd, m_pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(CompositePushConstants), &pc);
         vkCmdDraw(cmd, 3, 1, 0, 0);

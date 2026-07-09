@@ -1,6 +1,3 @@
-//
-// Created by Paul on 9/29/2025.
-//
 
 #ifndef FILE_UTIL_H
 #define FILE_UTIL_H

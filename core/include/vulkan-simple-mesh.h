@@ -1,6 +1,3 @@
-//
-// Created by Paul on 10/3/2025.
-//
 
 #ifndef VULKAN_SIMPLE_MESH_H
 #define VULKAN_SIMPLE_MESH_H

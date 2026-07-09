@@ -1,6 +1,4 @@
-//
-// Created by Paul on 10/20/2025.
-//
+
 
 #ifndef VULKAN_IMGUI_H
 #define VULKAN_IMGUI_H

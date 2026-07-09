@@ -305,7 +305,7 @@ namespace VK {
 
         m_vs = createShaderModuleFromText(m_device, "../../shaders/g_buffer_norm.vert");
         m_fs = createShaderModuleFromText(m_device, "../../shaders/g_buffer_norm.frag");
-        m_rgenModule = createShaderModuleFromText(m_device, "../../shaders/rt_light_oren_nayar.rgen");
+        m_rgenModule = createShaderModuleFromText(m_device, "../../shaders/rt_light_lambert.rgen");
         m_rmissModule = createShaderModuleFromText(m_device, "../../shaders/rt_shadow.rmiss");
         m_rchitModule = createShaderModuleFromText(m_device, "../../shaders/rt_shadow.rchit");
         m_reflMissModule = createShaderModuleFromText(m_device, "../../shaders/rt_reflection.rmiss");
@@ -370,12 +370,21 @@ namespace VK {
 
         m_models.push_back(new VkModel());
         m_models.back()->Init(&m_vkCore);
-        m_models.back()->LoadAssimpModel("../../content/HybridRendering/meshes/sponaza.obj");
+        m_models.back()->LoadAssimpModel("../../content/TV/TV.obj");
 
         m_models.push_back(new VkModel());
         m_models.back()->Init(&m_vkCore);
-        m_models.back()->LoadAssimpModel("../../content/coffee/CoffeeCart_01_4k.obj");
+        m_models.back()->LoadAssimpModel("../../content/HybridRendering/meshes/sponaza.obj");
 
+        // m_models.push_back(new VkModel());
+        // m_models.back()->Init(&m_vkCore);
+        // m_models.back()->LoadAssimpModel("../../content/coffee/CoffeeCart_01_4k.obj");
+
+        // m_models.push_back(new VkModel());
+        // m_models.back()->Init(&m_vkCore);
+        // m_models.back()->LoadAssimpModel("../../content/happy_buddha/happy_buddha.obj");
+
+        //
         m_models.push_back(new VkModel());
         m_models.back()->Init(&m_vkCore);
         m_models.back()->LoadAssimpModel("../../content/video_camera/video_camera.obj");
@@ -383,10 +392,10 @@ namespace VK {
         m_models.push_back(new VkModel());
         m_models.back()->Init(&m_vkCore);
         m_models.back()->LoadAssimpModel("../../content/blue_barrel/blue_barrel.obj");
-
-        m_models.push_back(new VkModel());
-        m_models.back()->Init(&m_vkCore);
-        m_models.back()->LoadAssimpModel("../../content/marble_statue/marble_bust.obj");
+        //
+        // m_models.push_back(new VkModel());
+        // m_models.back()->Init(&m_vkCore);
+        // m_models.back()->LoadAssimpModel("../../content/marble_statue/marble_bust.obj");
 
         m_totalVertices = 0;
         for (auto *model: m_models) {
@@ -552,6 +561,21 @@ namespace VK {
             if (ImGui::CollapsingHeader("Global Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::Checkbox("Show Advanced Analytics Overlay", &m_showFPSGraph);
                 ImGui::Separator();
+
+                ImGui::Text("Tone Mapper:");
+                if (ImGui::RadioButton("ACES", m_toneMapperMode == 0)) {
+                    m_toneMapperMode = 0;
+                    vkDeviceWaitIdle(m_device);
+                    RecordCommandBuffers();
+                }
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Khronos PBR Neutral", m_toneMapperMode == 1)) {
+                    m_toneMapperMode = 1;
+                    vkDeviceWaitIdle(m_device);
+                    RecordCommandBuffers();
+                }
+
+                ImGui::Separator();
                 ImGui::Text("Total Scene Vertices: %llu", m_totalVertices);
             }
 
@@ -569,12 +593,28 @@ namespace VK {
                 ImGui::SliderFloat("Sun Angle (Radius)", &m_dirLightAngle, 0.001f, 0.1f);
             }
 
-            if (ImGui::CollapsingHeader("Spherical Area Light", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::Checkbox("Enable Light", &m_sphLightEnabled);
-                ImGui::SliderFloat3("Position", &m_sphLightPos.x, -100.0f, 100.0f);
-                ImGui::ColorEdit3("Color", &m_sphLightColor.x);
-                ImGui::SliderFloat("Strength", &m_sphLightStrength, 0.0f, 2000.0f);
-                ImGui::SliderFloat("Radius", &m_sphLightRadius, 0.01f, 50.0f);
+            if (ImGui::CollapsingHeader("Spherical Area Lights", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::ColorEdit3("Common Color", &m_sphLightColor.x);
+                ImGui::SliderFloat("Common Strength", &m_sphLightStrength, 0.0f, 2000.0f);
+                ImGui::SliderFloat("Common Radius", &m_sphLightRadius, 0.01f, 50.0f);
+
+                ImGui::Text("Light Toggle Presets:");
+                if (ImGui::Button("1 On")) { for (int i = 0; i < 16; ++i) m_sphLightEnabled[i] = i < 1; }
+                ImGui::SameLine();
+                if (ImGui::Button("2 On")) { for (int i = 0; i < 16; ++i) m_sphLightEnabled[i] = i < 2; }
+                ImGui::SameLine();
+                if (ImGui::Button("4 On")) { for (int i = 0; i < 16; ++i) m_sphLightEnabled[i] = i < 4; }
+                ImGui::SameLine();
+                if (ImGui::Button("8 On")) { for (int i = 0; i < 16; ++i) m_sphLightEnabled[i] = i < 8; }
+                ImGui::SameLine();
+                if (ImGui::Button("16 On")) { for (int i = 0; i < 16; ++i) m_sphLightEnabled[i] = true; }
+
+                for (int i = 0; i < 16; ++i) {
+                    char label[32];
+                    snprintf(label, sizeof(label), "Light %d", i + 1);
+                    ImGui::Checkbox(label, &m_sphLightEnabled[i]);
+                    if ((i + 1) % 4 != 0) ImGui::SameLine();
+                }
             }
 
             ImGui::End();
@@ -610,9 +650,9 @@ namespace VK {
         std::vector<uint64_t> modelAddresses;
         for (auto *model: m_models) {
             if (model == m_pSphereLightModel) {
-                glm::mat4 lightTranslate = glm::translate(glm::mat4(1.0f), m_sphLightPos);
-                glm::mat4 lightScale = glm::scale(glm::mat4(1.0f), glm::vec3(m_sphLightRadius));
-                model->m_worldMatrix = lightTranslate * lightScale;
+                // glm::mat4 lightTranslate = glm::translate(glm::mat4(1.0f), m_sphLightPos);
+                // glm::mat4 lightScale = glm::scale(glm::mat4(1.0f), glm::vec3(m_sphLightRadius));
+                // model->m_worldMatrix = lightTranslate * lightScale;
             } else {
                 model->m_worldMatrix = World;
             }
@@ -635,12 +675,14 @@ namespace VK {
         dirLight.radiusData = glm::vec4(m_dirLightAngle, 0.0f, 0.0f, 0.0f);
         sceneLights.push_back(dirLight);
 
-        if (m_sphLightEnabled) {
-            Light sphLight{};
-            sphLight.posAndType = glm::vec4(m_sphLightPos, 1.0f);
-            sphLight.colorAndStrength = glm::vec4(m_sphLightColor, m_sphLightStrength);
-            sphLight.radiusData = glm::vec4(m_sphLightRadius, 0.0f, 0.0f, 0.0f);
-            sceneLights.push_back(sphLight);
+        for (int i = 0; i < MAX_SPH_LIGHTS; ++i) {
+            if (m_sphLightEnabled[i]) {
+                Light sphLight{};
+                sphLight.posAndType = glm::vec4(m_sphLightPos[i], 1.0f);
+                sphLight.colorAndStrength = glm::vec4(m_sphLightColor, m_sphLightStrength);
+                sphLight.radiusData = glm::vec4(m_sphLightRadius, 0.0f, 0.0f, 0.0f);
+                sceneLights.push_back(sphLight);
+            }
         }
 
         if (m_pRTPipeline) {
@@ -1045,7 +1087,7 @@ namespace VK {
                 m_pCompositePipeline->RecordCommandBuffer(CmdBuf, i, static_cast<uint32_t>(fbWidth),
                                                           static_cast<uint32_t>(fbHeight),
                                                           m_pGameCamera->GetPosition(),
-                                                          mainLightDir);
+                                                          mainLightDir, m_toneMapperMode);
 
                 m_skybox.recordCommandBuffer(CmdBuf, i);
 

@@ -24,10 +24,6 @@ const char *GetDebugSeverityStr(const VkDebugUtilsMessageSeverityFlagBitsEXT Sev
     }
 }
 
-int IsGLVersionHigher(int MajorVer, int MinorVer) {
-    return false;
-}
-
 string GetDirFromFilename(const string& Filename)
 {
     // Extract the directory part from the file name

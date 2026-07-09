@@ -8,6 +8,8 @@
 #include "vulkan-wrapper.h"
 
 namespace VK {
+    static u32 g_lastAcquiredImageIndex = 0;
+
     void VulkanQueue::Init(VkDevice Device, VkSwapchainKHR SwapChain, u32 QueueFamily, u32 QueueIndex) {
         m_device = Device;
         m_swapChain = SwapChain;
@@ -54,7 +56,7 @@ namespace VK {
         VkFenceCreateInfo fenceInfo = {
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
             .pNext = NULL,
-            .flags = VK_FENCE_CREATE_SIGNALED_BIT // Start signaled to avoid stalls
+            .flags = VK_FENCE_CREATE_SIGNALED_BIT
         };
 
         for (VkFence &Fence: m_inFlightFences) {
@@ -95,12 +97,14 @@ namespace VK {
 
         m_imagesInFlight[ImageIndex] = m_inFlightFences[m_frameIndex];
 
+        g_lastAcquiredImageIndex = ImageIndex;
+
         return ImageIndex;
     }
 
 
     void VulkanQueue::SubmitSync(VkCommandBuffer CmbBuf) {
-        VkFenceCreateInfo fenceInfo{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+        VkFenceCreateInfo fenceInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
         VkFence fence = VK_NULL_HANDLE;
         VkResult res = vkCreateFence(m_device, &fenceInfo, nullptr, &fence);
         CHECK_VK_RESULT(res, "vkCreateFence (SubmitSync)");
@@ -109,7 +113,7 @@ namespace VK {
             VK_STRUCTURE_TYPE_SUBMIT_INFO
         };
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers    = &CmbBuf;
+        submitInfo.pCommandBuffers = &CmbBuf;
 
         res = vkQueueSubmit(m_queue, 1, &submitInfo, fence);
         CHECK_VK_RESULT(res, "vkQueueSubmit (SubmitSync)");
@@ -119,7 +123,6 @@ namespace VK {
 
         vkDestroyFence(m_device, fence, nullptr);
     }
-
 
 
     void VulkanQueue::SubmitAsync(VkCommandBuffer CmdBuf) {
@@ -138,7 +141,7 @@ namespace VK {
             .commandBufferCount = (u32) NumCmdBufs,
             .pCommandBuffers = pCmdBufs,
             .signalSemaphoreCount = 1,
-            .pSignalSemaphores = &m_renderFinishedSems[m_frameIndex]
+            .pSignalSemaphores = &m_renderFinishedSems[g_lastAcquiredImageIndex]
         };
 
         VkResult res = vkQueueSubmit(m_queue, 1, &submitInfo, m_inFlightFences[m_frameIndex]);
@@ -151,7 +154,7 @@ namespace VK {
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             .pNext = NULL,
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &m_renderFinishedSems[m_frameIndex],
+            .pWaitSemaphores = &m_renderFinishedSems[ImageIndex],
             .swapchainCount = 1,
             .pSwapchains = &m_swapChain,
             .pImageIndices = &ImageIndex,

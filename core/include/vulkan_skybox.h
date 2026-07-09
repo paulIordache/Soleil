@@ -1,6 +1,4 @@
-//
-// Created by Paul on 10/21/2025.
-//
+
 
 #ifndef VULKAN_SKYBOX_H
 #define VULKAN_SKYBOX_H
